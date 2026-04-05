@@ -53,6 +53,8 @@ type CheckoutState = {
   updateProductStockInDB: (id: string, newStock: number) => Promise<boolean>;
 
   addItem: (item: CheckoutItem) => void;
+  updateQuantity: (id: string, quantity: number) => void; // NEW
+  removeItem: (id: string) => void; // NEW
   updateShipping: (details: any) => void;
   setPaymentMethod: (method: string) => void;
   setShippingMethod: (method: 'jnt' | 'lalamove') => void;
@@ -173,6 +175,16 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
         return { items: [...state.items, item] };
       }),
+      
+      // NEW ACTIONS: Inline Cart Controls
+      updateQuantity: (id, quantity) => set((state) => ({
+        items: state.items.map(item => item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item)
+      })),
+      
+      removeItem: (id) => set((state) => ({
+        items: state.items.filter(item => item.id !== id)
+      })),
+
       updateShipping: (details) => set((state) => ({ shippingDetails: { ...state.shippingDetails, ...details } })),
       setPaymentMethod: (method) => set({ paymentMethod: method }),
       setShippingMethod: (method) => set({ shippingMethod: method }),
