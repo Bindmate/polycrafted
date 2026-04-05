@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ShoppingCart, Package, Users, Settings, LogOut, Bell } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, Users, Settings, LogOut, Bell, Calendar1Icon } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -11,6 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Orders", href: "/admin/orders", icon: ShoppingCart, badge: 3 }, // Example badge for pending orders
     { name: "Inventory", href: "/admin/inventory", icon: Package },
     { name: "Customers", href: "/admin/customers", icon: Users },
+    { name: "Schedule", href: "/admin/schedule", icon: Calendar1Icon },
   ];
 
   return (
