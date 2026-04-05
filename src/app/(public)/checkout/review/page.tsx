@@ -2,25 +2,44 @@
 import { useState } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2 } from "lucide-react";
+import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store } from "lucide-react";
 
 export default function ReviewStep() {
   const router = useRouter();
-  const { shippingDetails, paymentMethod, getTotal, clearCart } = useCheckoutStore();
   
-  // NEW: State to track if a file was uploaded
+  // PULL IN THE NEW placeOrder FUNCTION!
+  const { shippingDetails, paymentMethod, shippingMethod, selectedPickup, getTotal, placeOrder } = useCheckoutStore();
+  
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileObject, setFileObject] = useState<File | null>(null);
+  const [referenceNo, setReferenceNo] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handlePlaceOrder = () => {
-    if (!fileName) return; // Failsafe just in case
-    // 1. Clear the cart
-    clearCart();
-    // 2. Redirect to the success page
-    router.push('/success');
+  const handlePlaceOrder = async () => {
+    if (!fileName || !fileObject || !referenceNo) {
+      alert("Please upload your receipt and provide the Reference Number.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Call the Supabase function we built in store.ts!
+    const success = await placeOrder(
+      { method: paymentMethod || 'Unknown', referenceNo: referenceNo },
+      fileObject
+    );
+
+    if (success) {
+      router.push('/success');
+    } else {
+      alert("Something went wrong placing your order. Please check your internet connection and try again.");
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      setFileObject(e.target.files[0]);
       setFileName(e.target.files[0].name);
     }
   };
@@ -46,18 +65,36 @@ export default function ReviewStep() {
       <p className="text-gray-500 text-sm mb-8 ml-11">Make sure everything looks perfect before we lock it in.</p>
 
       <div className="space-y-6">
+        
         {/* Shipping Review Block */}
         <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-[20px] p-5">
           <div className="flex items-center justify-between mb-4 border-b border-[#f0e8e0] pb-3">
             <h3 className="font-medium text-[#2C2C2A] flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-400" /> Delivery to
+              {shippingMethod === 'pickup' ? (
+                <><Store className="w-4 h-4 text-[#D4537E]" /> Campus Meetup</>
+              ) : (
+                <><MapPin className="w-4 h-4 text-gray-400" /> Delivery to</>
+              )}
             </h3>
             <button onClick={() => router.push('/checkout/details')} className="text-xs text-[#D4537E] font-medium hover:underline">Edit</button>
           </div>
+          
           <div className="text-sm text-gray-600 space-y-1">
             <p className="font-medium text-[#2C2C2A]">{shippingDetails.fullName || 'Missing Name'}</p>
-            <p>{shippingDetails.phone || 'Missing Phone'}</p>
-            <p className="pt-1">{shippingDetails.address || 'Missing Address'}</p>
+            <p className="mb-2">{shippingDetails.phone || 'Missing Phone'}</p>
+            
+            {/* Show dynamic fulfillment detail based on choice */}
+            {shippingMethod === 'pickup' ? (
+              <div className="mt-3 bg-white p-3 rounded-xl border border-emerald-100 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5" />
+                <div>
+                  <p className="font-bold text-emerald-900 text-xs">PUP Manila Main Campus</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">{selectedPickup ? `${new Date(selectedPickup.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} • ${selectedPickup.startTime} - ${selectedPickup.endTime}` : 'No schedule selected'}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="pt-2 border-t border-[#f0e8e0]/50">{shippingDetails.address || 'Missing Address'}</p>
+            )}
           </div>
         </div>
 
@@ -75,7 +112,7 @@ export default function ReviewStep() {
           </div>
 
           {/* Dynamic Payment Instruction */}
-          {paymentMethod === 'gcash' && (
+          {(paymentMethod === 'gcash' || paymentMethod === 'maya') && (
             <div className="bg-white p-4 rounded-[14px] border border-[#f0e8e0] shadow-sm">
               <div className="flex items-start gap-2 mb-3">
                 <AlertCircle className="w-4 h-4 text-[#D4537E] flex-shrink-0 mt-0.5" />
@@ -90,8 +127,18 @@ export default function ReviewStep() {
             </div>
           )}
 
-          {/* NEW: Proof of Payment Upload */}
+          {/* Reference Number Input */}
           <div className="bg-white p-5 rounded-[16px] border border-[#f0e8e0] shadow-sm mt-5">
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Reference Number</label>
+            <input 
+              required 
+              type="text" 
+              placeholder="e.g., 8091 2345 6789 123" 
+              value={referenceNo} 
+              onChange={(e) => setReferenceNo(e.target.value)} 
+              className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 px-4 text-sm font-mono tracking-wider transition-all mb-4" 
+            />
+
             <h3 className="font-medium text-[#2C2C2A] flex items-center gap-2 mb-2">
               <UploadCloud className="w-4 h-4 text-gray-400" /> Upload payment proof
             </h3>
@@ -123,20 +170,25 @@ export default function ReviewStep() {
         <button 
           type="button" 
           onClick={() => router.push('/checkout/payment')}
-          className="w-1/3 bg-white border border-[#f0e8e0] text-gray-700 py-4 rounded-full text-base font-medium hover:bg-gray-50 transition-colors"
+          disabled={isSubmitting}
+          className="w-1/3 bg-white border border-[#f0e8e0] text-gray-700 py-4 rounded-full text-base font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           Back
         </button>
         <button 
           onClick={handlePlaceOrder}
-          disabled={!fileName} // Button is disabled if no file is uploaded!
-          className={`w-2/3 py-4 rounded-full text-base font-medium shadow-sm transition-all duration-300 ${
-            fileName 
+          disabled={!fileName || !referenceNo || isSubmitting} 
+          className={`w-2/3 py-4 rounded-full text-base font-medium shadow-sm transition-all duration-300 flex justify-center items-center gap-2 ${
+            (fileName && referenceNo && !isSubmitting)
               ? 'bg-[#2C2C2A] text-white hover:bg-black cursor-pointer' 
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {fileName ? 'Place Order' : 'Upload proof to place order'}
+          {isSubmitting ? (
+            <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+          ) : (
+            fileName && referenceNo ? 'Place Order' : 'Complete form to order'
+          )}
         </button>
       </div>
     </div>

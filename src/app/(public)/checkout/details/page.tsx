@@ -324,7 +324,7 @@ export default function CheckoutDetailsPage() {
                   <div>
                     <h3 className="font-bold text-[#2C2C2A] text-sm">Select your meetup schedule</h3>
                     <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Please pick a time you are confident you can attend. <strong className="text-[#D4537E]">Wait for our SMS confirmation 12 hours before your schedule</strong> in case of sudden campus closures or availability changes.
+                      Please pick a time you are confident you can attend. <strong className="text-[#D4537E]">Wait for our confirmation on chat 12 hours before your schedule</strong> in case of sudden campus closures or availability changes.
                     </p>
                   </div>
                 </div>
