@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, TicketPercent, CheckCircle2, Layers } from "lucide-react";
+import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, TicketPercent, CheckCircle2 } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
 const VIBES = ["All drops", "Sanrio", "Coquette", "College editions", "University"];
@@ -20,14 +20,32 @@ export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Lock scroll when cart is open on mobile
+  useEffect(() => {
+    if (isCartOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [isCartOpen]);
+
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
   
-  // NEW: Determine current active unit price based on cart volume
+  // Determine current active unit price based on cart volume
   const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
 
   const handleShare = (productName: string, e: React.MouseEvent) => {
     e.preventDefault();
-    alert(`Link to ${productName} copied! Ready to share via Messenger/Viber.`);
+    // Use Web Share API if available on mobile, fallback to alert
+    if (navigator.share) {
+      navigator.share({
+        title: `Polycrafted - ${productName}`,
+        text: `Check out this design from Polycrafted!`,
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      alert(`Link to ${productName} copied! Ready to share via Messenger/Viber.`);
+    }
   };
 
   const handleQuickAdd = (product: any, e: React.MouseEvent) => {
@@ -58,21 +76,21 @@ export default function CatalogPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf8f5] text-gray-800 font-sans pb-24 relative">
+    <div className="min-h-screen bg-[#fdf8f5] text-gray-800 font-sans pb-24 relative overflow-x-hidden">
       
       {/* --- SLIDE-OUT CART DRAWER --- */}
       {isCartOpen && (
         <div 
-          className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 z-50 transition-opacity backdrop-blur-sm"
           onClick={() => setIsCartOpen(false)}
         />
       )}
       
-      <div className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
+      <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
         isCartOpen ? "translate-x-0" : "translate-x-full"
       }`}>
-        <div className="flex items-center justify-between p-6 border-b border-[#f0e8e0]">
-          <h2 className="text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
+        <div className="flex items-center justify-between p-5 md:p-6 border-b border-[#f0e8e0]">
+          <h2 className="text-lg md:text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
             My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} items)</span>
           </h2>
           <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
@@ -82,8 +100,8 @@ export default function CatalogPage() {
 
         <div className="flex-1 overflow-y-auto">
           
-          {/* THE NEW VOLUME PRICING PROGRESS BAR */}
-          <div className="bg-[#FBEAF0]/50 p-6 border-b border-[#f0e8e0]">
+          {/* VOLUME PRICING PROGRESS BAR */}
+          <div className="bg-[#FBEAF0]/50 p-5 md:p-6 border-b border-[#f0e8e0]">
             {cartItemCount === 0 ? (
                <div>
                  <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
@@ -108,14 +126,14 @@ export default function CatalogPage() {
             )}
           </div>
 
-          <div className="p-6">
+          <div className="p-5 md:p-6">
             {items.length === 0 ? (
-              <div className="h-40 flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
-                <ShoppingBag className="w-12 h-12 text-gray-300" />
-                <p>Your bag is empty.</p>
+              <div className="h-60 flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
+                <ShoppingBag className="w-16 h-16 text-gray-300" />
+                <p className="text-base">Your bag is empty.</p>
                 <button 
                   onClick={() => setIsCartOpen(false)}
-                  className="mt-4 text-[#D4537E] font-medium hover:underline"
+                  className="mt-4 text-[#D4537E] font-medium hover:underline text-sm"
                 >
                   Continue browsing
                 </button>
@@ -123,19 +141,23 @@ export default function CatalogPage() {
             ) : (
               <ul className="space-y-6">
                 {items.map((item, index) => (
-                  <li key={`${item.id}-${index}`} className="flex gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2">
+                  <li key={`${item.id}-${index}`} className="flex gap-4 items-center">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2 overflow-hidden relative select-none">
                       {item.name.split(' ')[0]}
+                      {/* White text watermark, 50% opacity, rotated */}
+                      <div className="absolute inset-0 flex items-center justify-center rotate-[-25deg] pointer-events-none">
+                        <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">Polycrafted</span>
+                      </div>
                     </div>
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-[#2C2C2A] line-clamp-2">{item.name}</h4>
-                      <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
+                      <p className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</p>
                       
                       {/* Dynamic Pricing Display */}
                       <p className="text-sm font-bold text-[#2C2C2A] mt-1 flex items-center gap-2">
                         ₱{(activeUnitPrice * item.quantity).toFixed(2)}
                         {cartItemCount >= 2 && (
-                          <span className="text-[10px] text-gray-400 line-through font-normal">
+                          <span className="text-[11px] text-gray-400 line-through font-normal">
                             ₱{(30 * item.quantity).toFixed(2)}
                           </span>
                         )}
@@ -150,18 +172,18 @@ export default function CatalogPage() {
         </div>
 
         {items.length > 0 && (
-          <div className="p-6 border-t border-[#f0e8e0] bg-[#fdf8f5]">
-            <div className="flex justify-between items-center mb-6">
+          <div className="p-5 md:p-6 border-t border-[#f0e8e0] bg-[#fdf8f5] mt-auto">
+            <div className="flex justify-between items-center mb-5">
               <span className="text-base font-medium text-[#2C2C2A]">Subtotal</span>
-              <span className="text-xl font-medium text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
+              <span className="text-2xl font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
             </div>
             <Link 
               href="/checkout/details"
-              className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm"
+              className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 md:py-4 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm"
             >
               Go to checkout
             </Link>
-            <p className="text-xs text-center text-gray-500 mt-3 flex items-center justify-center gap-1">
+            <p className="text-[11px] text-center text-gray-500 mt-3 flex items-center justify-center gap-1">
               GCash & Maya accepted <span className="text-[#D4537E]">♥</span>
             </p>
           </div>
@@ -169,24 +191,30 @@ export default function CatalogPage() {
       </div>
 
       {/* STICKY TOP NAVIGATION */}
-      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-[#f0e8e0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="text-xl font-medium tracking-tight">
+      <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#f0e8e0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between gap-4">
+          <Link href="/" className="text-xl md:text-2xl font-medium tracking-tight flex-shrink-0">
             pup<span className="text-[#D4537E]">merch</span>
           </Link>
 
+          {/* Search - hidden on very small mobile, shown on sm+ */}
           <div className="hidden sm:block relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
               type="text" 
               placeholder="Search designs..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-full py-2 pl-9 pr-4 text-sm font-medium transition-all"
+              className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-full py-2.5 md:py-3 pl-10 pr-4 text-sm font-medium transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
+            {/* Search Icon for mobile */}
+            <button className="sm:hidden p-2 text-gray-600 hover:text-[#D4537E]">
+                <Search className="w-5 h-5" />
+            </button>
+
             <Link href="/account" className="p-2 text-gray-600 hover:text-[#D4537E] transition-colors relative">
               <User className="w-5 h-5" />
               {user && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#71A051] rounded-full ring-2 ring-white"></span>}
@@ -195,17 +223,19 @@ export default function CatalogPage() {
             <Link href="/account" className="p-2 text-gray-600 hover:text-[#D4537E] transition-colors relative">
               <Heart className="w-5 h-5" />
               {wishlist.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#D4537E] rounded-full"></span>
+                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#D4537E] rounded-full text-[7px] text-white flex items-center justify-center font-bold">
+                    {wishlist.length}
+                </span>
               )}
             </Link>
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2 bg-[#2C2C2A] text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-black transition-colors"
+              className="flex items-center gap-2 bg-[#2C2C2A] text-white px-3.5 py-2 md:px-5 md:py-3 rounded-full text-sm font-medium hover:bg-black transition-colors"
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span>My bag</span>
+              <ShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden xs:inline">My bag</span>
               {cartItemCount > 0 && (
-                <span className="bg-white text-[#2C2C2A] text-xs font-medium px-1.5 py-0.5 rounded-full ml-1">
+                <span className="bg-white text-[#2C2C2A] text-xs font-semibold px-2 py-0.5 rounded-full ml-0.5 md:ml-1">
                   {cartItemCount}
                 </span>
               )}
@@ -214,41 +244,54 @@ export default function CatalogPage() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-10">
         
         {/* SOFT HERO BANNER */}
-        <div className="relative overflow-hidden rounded-[24px] bg-[#FBEAF0] p-8 md:p-12 mb-6 flex flex-col md:flex-row items-center justify-between gap-8 border border-[#f0e8e0]">
-          <div className="relative z-10 max-w-xl">
+        <div className="relative overflow-hidden rounded-[20px] md:rounded-[24px] bg-[#FBEAF0] p-6 sm:p-8 md:p-12 mb-6 md:mb-8 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 border border-[#f0e8e0]">
+          <div className="relative z-10 max-w-xl text-center md:text-left">
             <span className="inline-block py-1 px-3 rounded-full bg-white/60 text-[#D4537E] text-xs font-medium mb-3">Just dropped</span>
-            <h1 className="text-3xl md:text-5xl font-medium text-[#2C2C2A] tracking-tight mb-3">The Iskolar collection</h1>
-            <p className="text-[#72243E]/80 text-sm md:text-base font-normal max-w-md mb-6">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-medium text-[#2C2C2A] tracking-tight mb-3 md:mb-4">The Iskolar collection</h1>
+            <p className="text-[#72243E]/80 text-sm md:text-base font-normal max-w-md mx-auto md:mx-0 mb-5 md:mb-0">
               Upgrade your daily commute with our newest aesthetic drops. Handcrafted for the modern student.
             </p>
+          </div>
+          {/* Placeholder for hero image/graphic to make it feel full on desktop */}
+          <div className="w-32 h-32 md:w-48 md:h-48 bg-[#D4537E]/10 rounded-full flex-shrink-0 relative opacity-50 md:opacity-100">
+             <div className="absolute inset-0 flex items-center justify-center rotate-[-20deg]">
+                <span className="text-xl font-black text-[#D4537E]/20 tracking-widest uppercase">Polycrafted</span>
+              </div>
           </div>
         </div>
 
         {/* Promo Banner (Only shows if logged out) */}
         {!user && (
-          <Link href="/account" className="block bg-gradient-to-r from-white to-[#fdf8f5] border border-[#f0e8e0] rounded-[16px] p-4 mb-8 shadow-sm hover:border-[#D4537E]/40 transition-colors group">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#FBEAF0] text-[#D4537E] rounded-full flex items-center justify-center">
-                  <TicketPercent className="w-5 h-5" />
+          <Link href="/account" className="block bg-gradient-to-r from-white to-[#fdf8f5] border border-[#f0e8e0] rounded-[16px] p-4 md:p-5 mb-6 md:mb-8 shadow-sm hover:border-[#D4537E]/40 transition-colors group relative overflow-hidden">
+             {/* Background Watermark for banner */}
+            <div className="absolute inset-0 flex items-center justify-center rotate-[-5deg] opacity-[0.03] pointer-events-none select-none">
+                <span className="text-6xl font-bold text-black tracking-widest uppercase">Polycrafted</span>
+            </div>
+            
+            <div className="flex items-center justify-between gap-4 relative z-10">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-[#FBEAF0] text-[#D4537E] rounded-full flex items-center justify-center flex-shrink-0">
+                  <TicketPercent className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-[#2C2C2A] text-sm">Unlock 10% off your entire order</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Create a free student account to save your wishlists and get exclusive drops.</p>
+                  <h3 className="font-medium text-[#2C2C2A] text-sm md:text-base">Unlock 10% off your entire order</h3>
+                  <p className="text-xs md:text-sm text-gray-500 mt-0.5">Create a free student account to save your wishlists and get exclusive drops.</p>
                 </div>
               </div>
-              <span className="hidden sm:inline-flex bg-[#2C2C2A] text-white px-4 py-2 rounded-full text-xs font-medium group-hover:bg-black transition-colors">Join the Community</span>
+              <span className="hidden xs:inline-flex bg-[#2C2C2A] text-white px-4 py-2 md:px-5 md:py-2.5 rounded-full text-xs font-medium group-hover:bg-black transition-colors flex-shrink-0">Join the Community</span>
             </div>
           </Link>
         )}
 
         {/* BROWSE BY VIBE */}
-        <div className="mb-6">
-          <p className="text-sm font-medium text-gray-500 mb-3">Browse by vibe</p>
-          <div className="flex overflow-x-auto gap-2.5 pb-2 no-scrollbar snap-x">
+        <div className="mb-6 md:mb-8">
+          <p className="text-xs md:text-sm font-medium text-gray-500 mb-3 md:mb-4">Browse by vibe</p>
+          {/* Added negative margin on mobile to allow bleeding items */}
+          <div className="flex overflow-x-auto gap-2.5 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar snap-x">
             {VIBES.map((vibe, i) => {
               const pastelBgs = ['bg-[#fdf8f5]', 'bg-[#FBEAF0]', 'bg-[#EEEDFE]', 'bg-[#EAF3DE]', 'bg-[#FAEEDA]'];
               const inactiveBg = pastelBgs[i % pastelBgs.length];
@@ -256,7 +299,7 @@ export default function CatalogPage() {
                 <button
                   key={vibe}
                   onClick={() => setActiveVibe(vibe)}
-                  className={`whitespace-nowrap px-5 py-2 rounded-full text-sm transition-all snap-start border ${
+                  className={`whitespace-nowrap px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm transition-all snap-start border ${
                     activeVibe === vibe 
                       ? "bg-[#2C2C2A] border-[#2C2C2A] text-white font-medium shadow-sm" 
                       : `${inactiveBg} border-[#f0e8e0] text-gray-600 hover:border-gray-300 font-normal`
@@ -270,14 +313,14 @@ export default function CatalogPage() {
         </div>
 
         {/* TOOLBAR ROW */}
-        <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#f0e8e0]">
-          <p className="text-sm font-normal text-gray-500">{displayProducts.length} items found</p>
-          <div className="flex items-center gap-4">
+        <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#f0e8e0] gap-4">
+          <p className="text-xs md:text-sm font-normal text-gray-500">{displayProducts.length} items found</p>
+          <div className="flex items-center gap-4 flex-shrink-0">
             <div className="relative">
               <select 
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="appearance-none bg-transparent text-gray-700 text-sm font-medium pr-6 focus:outline-none cursor-pointer"
+                className="appearance-none bg-transparent text-gray-700 text-xs md:text-sm font-medium pr-6 focus:outline-none cursor-pointer"
               >
                 <option value="recommended">Recommended</option>
                 <option value="rating">Top rated</option>
@@ -289,8 +332,8 @@ export default function CatalogPage() {
           </div>
         </div>
 
-        {/* PRODUCT GRID */}
-        <div className={`grid gap-x-5 gap-y-10 grid-cols-2`}>
+        {/* PRODUCT GRID - adjusted cols for mobile/tablet */}
+        <div className="grid gap-x-4 gap-y-8 xs:gap-x-5 xs:gap-y-10 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {displayProducts.map((product) => {
             const isSaved = wishlist.includes(product.id);
             const stockPercentage = Math.min((product.stock / product.maxStock) * 100, 100);
@@ -310,56 +353,70 @@ export default function CatalogPage() {
             }
 
             return (
-              <div key={product.id} className="group relative flex flex-col">
+              <div key={product.id} className="group relative flex flex-col animate-in fade-in duration-300">
                 
-                <Link href={`/product/${product.id}`} className="block relative overflow-hidden rounded-[18px] bg-white border border-[#f0e8e0] shadow-sm transition-all duration-300 group-hover:border-[#D4537E]/30">
+                <Link href={`/product/${product.id}`} className="block relative overflow-hidden rounded-[16px] md:rounded-[18px] bg-white border border-[#f0e8e0] shadow-sm transition-all duration-300 group-hover:border-[#D4537E]/30">
                   <div 
-                    className={`aspect-[1.58/1] w-full bg-gradient-to-br ${product.color} relative flex items-center justify-center p-6 text-center`}
+                    className={`aspect-[1.58/1] w-full bg-gradient-to-br ${product.color} relative flex items-center justify-center p-6 text-center select-none`}
                     style={{ backgroundImage: `url('${product.frontImage}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                   >
-                    <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start z-10">
+                    {/* --- WHITE TEXT WATERMARK --- */}
+                    <div className="absolute inset-0 flex items-center justify-center rotate-[-25deg] pointer-events-none z-0">
+                      <span className="text-2xl xs:text-3xl md:text-4xl font-bold text-white/50 tracking-widest uppercase">
+                        Polycrafted
+                      </span>
+                    </div>
+
+                    {/* Badges - Adjusted for mobile */}
+                    <div className="absolute top-2 left-2 xs:top-3 xs:left-3 flex flex-col gap-1.5 items-start z-10">
                       {product.badge && (
-                        <span className={`text-[10px] uppercase tracking-wider font-medium px-2.5 py-1 rounded-full shadow-sm ${getBadgeStyle(product.badge)}`}>
+                        <span className={`text-[9px] xs:text-[10px] uppercase tracking-wider font-semibold px-2 xs:px-2.5 py-1 rounded-full shadow-sm ${getBadgeStyle(product.badge)}`}>
                           {product.badge}
                         </span>
                       )}
                       {product.backImage && (
-                        <span className="text-[10px] bg-indigo-50/90 border border-indigo-100 backdrop-blur-sm text-indigo-700 uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        <span className="text-[9px] xs:text-[10px] bg-indigo-50/90 border border-indigo-100 backdrop-blur-sm text-indigo-700 uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-sm">
                           Back-to-Back
                         </span>
                       )}
                     </div>
 
-                    <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
+                    {/* Action Buttons - Always visible on mobile, hover on desktop */}
+                    <div className="absolute top-2 right-2 xs:top-3 xs:right-3 z-20 flex flex-col gap-1.5 xs:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => {
                           e.preventDefault(); 
                           toggleWishlist(product.id);
                         }}
-                        className={`p-2 rounded-full backdrop-blur-md transition-all ${
-                          isSaved ? 'bg-white shadow-sm' : 'bg-white/40 hover:bg-white/70'
+                        className={`p-1.5 xs:p-2 rounded-full backdrop-blur-md transition-all ${
+                          isSaved ? 'bg-white shadow-sm' : 'bg-white/50 hover:bg-white/80'
                         }`}
                       >
-                        <Heart className={`w-4 h-4 transition-colors ${isSaved ? 'fill-[#D4537E] text-[#D4537E]' : 'text-gray-600'}`} />
+                        <Heart className={`w-3.5 h-3.5 xs:w-4 xs:h-4 transition-colors ${isSaved ? 'fill-[#D4537E] text-[#D4537E]' : 'text-gray-700'}`} />
                       </button>
                       <button 
                         onClick={(e) => handleShare(product.name, e)}
-                        className="p-2 rounded-full bg-white/40 backdrop-blur-md hover:bg-white/70 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
-                        title="Share with batchmates"
+                        className="p-1.5 xs:p-2 rounded-full bg-white/50 backdrop-blur-md hover:bg-white/80 transition-all hidden xs:flex"
+                        title="Share design"
                       >
-                        <Share className="w-3.5 h-3.5 text-gray-600" />
+                        <Share className="w-3.5 h-3.5 xs:w-3.5 xs:h-3.5 text-gray-700" />
                       </button>
                     </div>
 
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex items-end">
-                      <div className="w-full p-3 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                    {/* Quick Add - adjusted for mobile interaction */}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex items-end md:items-center justify-center p-3 xs:p-4">
+                      <div className="w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hidden md:block">
                         <button 
                           onClick={(e) => handleQuickAdd(product, e)}
-                          className="w-full flex justify-center items-center gap-2 bg-white text-[#2C2C2A] py-2.5 rounded-full text-sm font-medium shadow-lg hover:bg-[#fdf8f5] transition-colors"
+                          className="w-full flex justify-center items-center gap-2 bg-white text-[#2C2C2A] py-2.5 rounded-full text-sm font-semibold shadow-lg hover:bg-[#fdf8f5] transition-colors"
                         >
                           <Plus className="w-4 h-4 text-[#D4537E]" /> Add to bag
                         </button>
                       </div>
+                       {/* Mobile Quick Add tap area hint */}
+                       <div className="md:hidden absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-[#D4537E]">
+                           <Plus className="w-4 h-4" onClick={(e) => handleQuickAdd(product, e)}/>
+                       </div>
                     </div>
                   </div>
                 </Link>
@@ -373,30 +430,50 @@ export default function CatalogPage() {
                     <span className="text-[10px] text-gray-400">({product.reviews})</span>
                   </div>
 
-                  <h3 className="text-sm text-gray-800 font-medium leading-tight">
-                    <Link href={`/product/${product.id}`}>{product.name}</Link>
+                  <h3 className="text-xs xs:text-sm text-gray-800 font-medium leading-tight line-clamp-2 min-h-[32px] xs:min-h-[40px]">
+                    <Link href={`/product/${product.id}`} className="hover:text-[#D4537E]">{product.name}</Link>
                   </h3>
                   
-                  <div className="mt-2.5">
+                  <div className="mt-2.5 xs:mt-3 mb-3 xs:mb-3.5">
                     <div className="flex justify-between items-end mb-1.5">
-                      <span className={`text-[11px] font-medium ${stockText}`}>{stockLabel}</span>
+                      <span className={`text-[10px] xs:text-[11px] font-medium ${stockText}`}>{stockLabel}</span>
                     </div>
-                    <div className="w-full bg-[#f0e8e0] h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-[#f0e8e0] h-1 xs:h-1.5 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full transition-all duration-1000 ease-out ${stockColor}`} style={{ width: `${stockPercentage}%` }}></div>
                     </div>
                   </div>
 
-                  {/* DISPLAY DEFAULT PRICE, AND EXPLAIN THE DROP */}
-                  <div className="mt-3.5 flex items-center gap-2">
-                    <p className="text-base font-bold text-[#2C2C2A]">₱{product.price.toFixed(2)}</p>
-                    <span className="text-[10px] bg-[#EAF3DE] text-[#27500A] px-2 py-0.5 rounded-md font-medium">₱24 if you buy 2+</span>
+                  {/* Pricing Display */}
+                  <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="text-base xs:text-lg font-bold text-[#2C2C2A]">₱{product.price.toFixed(2)}</p>
+                    <span className="text-[10px] xs:text-[11px] bg-[#EAF3DE] text-[#27500A] px-2 py-0.5 rounded-md font-medium whitespace-nowrap">
+                        ₱24 if you buy 2+
+                    </span>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+        
+        {/* Empty State */}
+        {displayProducts.length === 0 && (
+            <div className="text-center py-20 px-4 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl bg-white/50 mt-10">
+                <Search className="w-16 h-16 text-gray-300 mb-6" />
+                <h3 className="text-xl font-medium text-gray-800 mb-2">No designs found</h3>
+                <p className="text-gray-500 max-w-sm mb-8 text-sm">We couldn't find any designs matching your current search or filter. Try adjusting them or browse all collections.</p>
+                <button 
+                    onClick={() => { setActiveVibe("All drops"); setSearchQuery(""); }}
+                    className="bg-[#2C2C2A] text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-black transition-colors"
+                >
+                    Clear filters & search
+                </button>
+            </div>
+        )}
       </div>
+      
+      {/* Dynamic spacing utility class added for mobile Safari bottom bar */}
+      <div className="h-safe-bottom"></div>
     </div>
   );
 }
