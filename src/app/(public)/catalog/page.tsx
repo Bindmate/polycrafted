@@ -274,7 +274,7 @@ export default function CatalogPage() {
                 <Link href={`/product/${product.id}`} className="block relative overflow-hidden rounded-[18px] bg-white border border-[#f0e8e0] shadow-sm transition-all duration-300 group-hover:border-[#D4537E]/30">
                   <div 
                     className={`aspect-[1.58/1] w-full bg-gradient-to-br ${product.color} relative flex items-center justify-center p-6 text-center`}
-                    style={{ backgroundImage: `url('${product.imagePath}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                    style={{ backgroundImage: `url('${product.frontImage}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                   >
                     <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start z-10">
                       {product.badge && (

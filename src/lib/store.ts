@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from './supabase'; // <-- WE ARE IMPORTING SUPABASE HERE!
+import { supabase } from './supabase';
 
 type CheckoutItem = {
   id: string;
@@ -31,7 +31,8 @@ export type Product = {
   reviews: number;
   color: string;
   isBundleEligible: boolean;
-  imagePath: string;
+  frontImage: string;          // UPGRADED
+  backImage: string | null;    // NEW
   description: string;
 };
 
@@ -43,16 +44,14 @@ type CheckoutState = {
   user: User | null;
   wishlist: string[];
   
-  // LIVE INVENTORY STATE
   products: Product[];
   isLoadingProducts: boolean;
   
-  // SUPABASE ACTIONS
   fetchProducts: () => Promise<void>;
-  addProductToDB: (productData: any, imageFile: File) => Promise<boolean>;
+  // UPGRADED: Now accepts a front file, and an optional back file
+  addProductToDB: (productData: any, frontFile: File, backFile: File | null) => Promise<boolean>;
   updateProductStockInDB: (id: string, newStock: number) => Promise<boolean>;
 
-  // STOREFRONT ACTIONS
   addItem: (item: CheckoutItem) => void;
   updateShipping: (details: any) => void;
   setPaymentMethod: (method: string) => void;
@@ -77,11 +76,8 @@ export const useCheckoutStore = create<CheckoutState>()(
       products: [],
       isLoadingProducts: false,
 
-      // --- SUPABASE BACKEND LOGIC ---
       fetchProducts: async () => {
         set({ isLoadingProducts: true });
-        
-        // 1. Fetch from the 'products' table in Supabase
         const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
         
         if (error) {
@@ -91,7 +87,6 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
 
         if (data) {
-          // 2. Map the SQL database columns to our frontend format
           const formattedProducts: Product[] = data.map(item => ({
             id: item.id,
             name: item.name,
@@ -101,36 +96,40 @@ export const useCheckoutStore = create<CheckoutState>()(
             badge: item.badge,
             stock: item.stock,
             maxStock: item.max_stock,
-            rating: 5.0, // Hardcoded for now
-            reviews: 0,  // Hardcoded for now
+            rating: 5.0, 
+            reviews: 0, 
             color: item.color || "from-gray-200 to-gray-400",
             isBundleEligible: false,
-            imagePath: item.image_path,
+            frontImage: item.front_image, // Mapped to new DB column
+            backImage: item.back_image,   // Mapped to new DB column
             description: item.description || ""
           }));
-          
           set({ products: formattedProducts, isLoadingProducts: false });
         }
       },
 
-      addProductToDB: async (productData, imageFile) => {
+      addProductToDB: async (productData, frontFile, backFile) => {
         try {
-          // 1. Upload the image to the 'designs' bucket
-          const fileExt = imageFile.name.split('.').pop();
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          // 1. Upload Front Image
+          const frontExt = frontFile.name.split('.').pop();
+          const frontFileName = `front-${Date.now()}-${Math.random().toString(36).substring(2)}.${frontExt}`;
+          const { error: frontErr } = await supabase.storage.from('designs').upload(frontFileName, frontFile);
+          if (frontErr) throw frontErr;
           
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from('designs')
-            .upload(fileName, imageFile);
+          const frontUrl = supabase.storage.from('designs').getPublicUrl(frontFileName).data.publicUrl;
 
-          if (uploadError) throw uploadError;
+          // 2. Upload Back Image (Only if it exists!)
+          let backUrl = null;
+          if (backFile) {
+            const backExt = backFile.name.split('.').pop();
+            const backFileName = `back-${Date.now()}-${Math.random().toString(36).substring(2)}.${backExt}`;
+            const { error: backErr } = await supabase.storage.from('designs').upload(backFileName, backFile);
+            if (backErr) throw backErr;
+            
+            backUrl = supabase.storage.from('designs').getPublicUrl(backFileName).data.publicUrl;
+          }
 
-          // 2. Get the public URL of the uploaded image
-          const { data: { publicUrl } } = supabase.storage
-            .from('designs')
-            .getPublicUrl(fileName);
-
-          // 3. Insert the new product into the SQL database
+          // 3. Insert into Database
           const { error: dbError } = await supabase.from('products').insert([{
             name: productData.name,
             price: productData.price,
@@ -138,14 +137,14 @@ export const useCheckoutStore = create<CheckoutState>()(
             category: productData.category,
             stock: productData.stock,
             description: productData.description,
-            image_path: publicUrl, // Save the Supabase image URL!
-            badge: "New Drop",
-            color: "from-rose-200 to-amber-200" // Default gradient
+            front_image: frontUrl,
+            back_image: backUrl,
+            badge: backUrl ? "Back-to-Back" : "New Drop", // Cool dynamic badge!
+            color: "from-rose-200 to-amber-200"
           }]);
 
           if (dbError) throw dbError;
 
-          // 4. Refresh the products list to show the new item instantly
           await get().fetchProducts();
           return true;
         } catch (error) {
@@ -159,11 +158,7 @@ export const useCheckoutStore = create<CheckoutState>()(
         try {
           const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
           if (error) throw error;
-          
-          // Update local state instantly so the UI doesn't lag
-          set((state) => ({
-            products: state.products.map(p => p.id === id ? { ...p, stock: newStock } : p)
-          }));
+          set((state) => ({ products: state.products.map(p => p.id === id ? { ...p, stock: newStock } : p) }));
           return true;
         } catch (error) {
           console.error("Failed to update stock:", error);
@@ -171,7 +166,6 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
       },
 
-      // --- STOREFRONT LOGIC ---
       addItem: (item) => set((state) => {
         const existingItem = state.items.find((i) => i.id === item.id);
         if (existingItem) {
@@ -196,13 +190,7 @@ export const useCheckoutStore = create<CheckoutState>()(
     }),
     { 
       name: 'polycrafted-storage',
-      // We don't want to persist the 'products' array anymore, because we want fresh data from Supabase every time!
-      partialize: (state) => ({ 
-        items: state.items, 
-        user: state.user, 
-        wishlist: state.wishlist, 
-        shippingDetails: state.shippingDetails 
-      }),
+      partialize: (state) => ({ items: state.items, user: state.user, wishlist: state.wishlist, shippingDetails: state.shippingDetails }),
     }
   )
 );

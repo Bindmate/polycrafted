@@ -2,37 +2,38 @@
 import { useState, useEffect } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { 
-  Search, Filter, Plus, Edit2, AlertTriangle, TrendingUp, PackagePlus, X, UploadCloud, Image as ImageIcon, Loader2
+  Search, Filter, Plus, Edit2, AlertTriangle, TrendingUp, PackagePlus, X, UploadCloud, Image as ImageIcon, Loader2, Layers
 } from "lucide-react";
 
 export default function InventoryPage() {
   const { products, fetchProducts, addProductToDB, updateProductStockInDB, isLoadingProducts } = useCheckoutStore();
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Load products from Supabase when the page opens!
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // Edit State
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [editStockValue, setEditStockValue] = useState<number>(0);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Add Product State
+  // ADD PRODUCT STATE
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: "", category: "University", price: 48, originalPrice: 50, stock: 10, description: ""
-  });
   
-  // We need to keep track of the actual File for Supabase
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // THE NEW BACK-TO-BACK TOGGLE
+  const [isBackToBack, setIsBackToBack] = useState(false);
+  
+  const [newProduct, setNewProduct] = useState({ name: "", category: "University", price: 48, originalPrice: 50, stock: 10, description: "" });
+  
+  // DUAL IMAGE STATE
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [frontPreview, setFrontPreview] = useState<string | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [backPreview, setBackPreview] = useState<string | null>(null);
 
   const filteredInventory = products.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleQuickRestock = async (id: string, currentStock: number, amountToAdd: number) => {
@@ -47,15 +48,19 @@ export default function InventoryPage() {
     setEditingProduct(null);
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Handler supporting both front and back
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
     const file = e.target.files?.[0];
     if (file) {
-      setUploadFile(file); // Save the file for Supabase
-      
-      // Create a local preview URL so you can see it instantly
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        if (side === 'front') {
+          setFrontFile(file);
+          setFrontPreview(reader.result as string);
+        } else {
+          setBackFile(file);
+          setBackPreview(reader.result as string);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -63,20 +68,19 @@ export default function InventoryPage() {
 
   const handleAddNewProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile) {
-      alert("Please upload a design image!");
-      return;
-    }
+    if (!frontFile) { alert("Please upload a Front Design!"); return; }
+    if (isBackToBack && !backFile) { alert("Please upload a Back Design!"); return; }
 
     setIsUploading(true);
     
-    // Call our new Supabase function!
-    const success = await addProductToDB(newProduct, uploadFile);
+    // Send both files to our upgraded function!
+    const success = await addProductToDB(newProduct, frontFile, isBackToBack ? backFile : null);
     
     if (success) {
       setIsAddingProduct(false);
-      setUploadFile(null);
-      setPreviewUrl(null);
+      setFrontFile(null); setFrontPreview(null);
+      setBackFile(null); setBackPreview(null);
+      setIsBackToBack(false);
       setNewProduct({ name: "", category: "University", price: 48, originalPrice: 50, stock: 10, description: "" });
     }
     
@@ -84,15 +88,11 @@ export default function InventoryPage() {
   };
 
   const getStatus = (stock: number) => stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
-
   const getStatusBadge = (stock: number) => {
     const status = getStatus(stock);
-    switch (status) {
-      case "In Stock": return <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">In Stock</span>;
-      case "Low Stock": return <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Low Stock</span>;
-      case "Out of Stock": return <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Out of Stock</span>;
-      default: return null;
-    }
+    if (status === "In Stock") return <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">In Stock</span>;
+    if (status === "Low Stock") return <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Low Stock</span>;
+    return <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Out of Stock</span>;
   };
 
   return (
@@ -115,68 +115,56 @@ export default function InventoryPage() {
 
       {/* INVENTORY TABLE */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden min-h-[400px] relative">
-        
-        {isLoadingProducts && products.length === 0 ? (
+        {isLoadingProducts && products.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10">
             <Loader2 className="w-8 h-8 text-[#D4537E] animate-spin mb-4" />
             <p className="text-gray-500 text-sm font-medium">Fetching from Supabase...</p>
           </div>
-        ) : null}
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4">Product Name</th>
-                <th className="px-6 py-4">Category</th>
+                <th className="px-6 py-4">Format</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-center">Current Stock</th>
+                <th className="px-6 py-4 text-center">Stock</th>
                 <th className="px-6 py-4 text-right">Price</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredInventory.length === 0 && !isLoadingProducts ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    No products in your database yet! Add your first design above.
+              {filteredInventory.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50 transition-colors group">
+                  <td className="px-6 py-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {item.frontImage ? <img src={item.frontImage} alt={item.name} className="w-full h-full object-cover" /> : <ImageIcon className="w-4 h-4 text-gray-400" />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900">{item.name}</p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {/* Badge showing if it's back-to-back */}
+                    {item.backImage ? (
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-md w-fit">
+                        <Layers className="w-3.5 h-3.5" /> Back-to-Back
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium text-gray-500">Solo Design</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">{getStatusBadge(item.stock)}</td>
+                  <td className="px-6 py-4 text-center font-bold text-gray-900">{item.stock}</td>
+                  <td className="px-6 py-4 text-right font-medium text-gray-900">₱{item.price.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => { setEditingProduct(item); setEditStockValue(item.stock); }} className="p-2 text-gray-400 hover:text-[#D4537E] hover:bg-[#FBEAF0] rounded-lg transition-colors">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
-              ) : (
-                filteredInventory.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors group">
-                    <td className="px-6 py-4 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                        {item.imagePath ? (
-                           <img src={item.imagePath} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="w-4 h-4 text-gray-400" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{item.name}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{item.category}</td>
-                    <td className="px-6 py-4">{getStatusBadge(item.stock)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col items-center">
-                        <span className={`font-bold ${item.stock <= 5 ? 'text-red-600' : 'text-gray-900'}`}>{item.stock}</span>
-                        <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleQuickRestock(item.id, item.stock, 5)} className="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">+5</button>
-                          <button onClick={() => handleQuickRestock(item.id, item.stock, 10)} className="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">+10</button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-gray-900">₱{item.price.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => { setEditingProduct(item); setEditStockValue(item.stock); }} className="p-2 text-gray-400 hover:text-[#D4537E] hover:bg-[#FBEAF0] rounded-lg transition-colors">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -194,20 +182,39 @@ export default function InventoryPage() {
             
             <form onSubmit={handleAddNewProduct} className="flex-1 overflow-y-auto p-6 space-y-6">
               
-              {/* Image Upload Area */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Design Image</label>
-                <label className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-colors overflow-hidden ${previewUrl ? 'border-[#71A051] bg-black' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover opacity-90" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
-                      <UploadCloud className="w-8 h-8 text-gray-400 mb-2" />
-                      <p className="text-sm font-medium text-gray-600">Click to upload design</p>
-                    </div>
-                  )}
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageSelect} />
-                </label>
+              {/* THE BACK-TO-BACK TOGGLE */}
+              <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-xl p-4 flex items-center justify-between cursor-pointer" onClick={() => setIsBackToBack(!isBackToBack)}>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Layers className="w-4 h-4 text-[#D4537E]" /> Back-to-Back Design?</h3>
+                  <p className="text-xs text-gray-500 mt-1">Enable this if you have a separate back image.</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors relative ${isBackToBack ? 'bg-[#D4537E]' : 'bg-gray-300'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${isBackToBack ? 'translate-x-7' : 'translate-x-1'}`} />
+                </div>
+              </div>
+
+              {/* IMAGE UPLOADERS */}
+              <div className={`grid ${isBackToBack ? 'grid-cols-2' : 'grid-cols-1'} gap-4 transition-all`}>
+                
+                {/* Front Image */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Front Design</label>
+                  <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors overflow-hidden ${frontPreview ? 'border-[#71A051] bg-black' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
+                    {frontPreview ? <img src={frontPreview} alt="Front" className="w-full h-full object-cover opacity-90" /> : <UploadCloud className="w-6 h-6 text-gray-400" />}
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, 'front')} />
+                  </label>
+                </div>
+
+                {/* Back Image (Conditional) */}
+                {isBackToBack && (
+                  <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Back Design</label>
+                    <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors overflow-hidden ${backPreview ? 'border-[#71A051] bg-black' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
+                      {backPreview ? <img src={backPreview} alt="Back" className="w-full h-full object-cover opacity-90" /> : <UploadCloud className="w-6 h-6 text-gray-400" />}
+                      <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, 'back')} />
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -235,11 +242,6 @@ export default function InventoryPage() {
                   <input required type="number" min="1" value={newProduct.stock} onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 1})} className="w-full bg-gray-50 border border-gray-200 focus:border-[#D4537E] outline-none rounded-xl px-4 py-2.5 text-sm" />
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</label>
-                <textarea required rows={3} value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="w-full bg-gray-50 border border-gray-200 focus:border-[#D4537E] outline-none rounded-xl px-4 py-2.5 text-sm resize-none" placeholder="Short description for the product page..." />
-              </div>
 
               <div className="pt-4 border-t border-gray-200 flex gap-3">
                 <button type="button" onClick={() => setIsAddingProduct(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors text-sm">Cancel</button>
@@ -248,43 +250,6 @@ export default function InventoryPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </>
-      )}
-
-      {/* QUICK EDIT DRAWER REMAINS THE SAME... */}
-      {editingProduct && (
-        <>
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity" onClick={() => setEditingProduct(null)} />
-          <div className="fixed top-0 right-0 h-full w-full md:w-[400px] bg-white z-50 shadow-2xl transform transition-transform duration-300 flex flex-col border-l border-gray-200 animate-in slide-in-from-right">
-            
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900">Edit Inventory</h2>
-              <button onClick={() => setEditingProduct(null)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="flex-1 p-6 space-y-6">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Product Name</label>
-                <input type="text" value={editingProduct.name} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed" />
-              </div>
-              <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-xl p-5">
-                <label className="block text-sm font-bold text-gray-900 mb-1">Stock Quantity</label>
-                <p className="text-xs text-gray-500 mb-4">Adjust the current physical stock count.</p>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setEditStockValue(Math.max(0, editStockValue - 1))} className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold text-xl">-</button>
-                  <input type="number" value={editStockValue} onChange={(e) => setEditStockValue(parseInt(e.target.value) || 0)} className="w-20 text-center font-bold text-2xl bg-transparent border-b-2 border-gray-300 focus:border-[#D4537E] focus:outline-none pb-1" />
-                  <button onClick={() => setEditStockValue(editStockValue + 1)} className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold text-xl">+</button>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
-              <button onClick={() => setEditingProduct(null)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors text-sm">Cancel</button>
-              <button onClick={handleSaveEdit} disabled={isUpdating} className="flex-1 py-3 rounded-xl bg-[#D4537E] text-white font-medium hover:bg-[#b8436b] shadow-sm transition-colors text-sm flex justify-center">
-                 {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Changes'}
-              </button>
-            </div>
           </div>
         </>
       )}

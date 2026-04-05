@@ -102,7 +102,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 {/* ACTUAL IMAGE: Rendered in full color without filters */}
                 <div 
                   className="absolute inset-0 w-full h-full bg-cover bg-center z-0"
-                  style={{ backgroundImage: `url('${product.imagePath}')` }}
+                  style={{ backgroundImage: `url('${product.frontImage}')` }}
                 />
 
               </div>
