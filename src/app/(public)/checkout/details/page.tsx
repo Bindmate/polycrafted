@@ -3,25 +3,26 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store";
-import { ChevronLeft, ChevronRight, Truck, Package, Store, MapPin, Map, Phone, User as UserIcon, Calendar, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Truck, Package, Store, MapPin, Phone, User as UserIcon, Calendar, Clock, X, Sparkles, CheckCircle2, ShoppingBag, Minus, Plus, Trash2 } from "lucide-react";
 
 export default function CheckoutDetailsPage() {
   const router = useRouter();
-  // PULL IN THE NEW SCHEDULING LOGIC
+  
   const { 
     items, getTotal, user, shippingDetails, updateShipping, 
     shippingMethod, setShippingMethod,
-    schedules, fetchSchedules, selectedPickup, setPickupSchedule 
+    schedules, fetchSchedules, selectedPickup, setPickupSchedule,
+    products, fetchProducts, updateQuantity, removeItem
   } = useCheckoutStore();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Fetch the active schedules when they open the checkout page!
   useEffect(() => {
     fetchSchedules();
-  }, [fetchSchedules]);
+    if (products.length === 0) fetchProducts();
+  }, [fetchSchedules, fetchProducts, products.length]);
 
-  // If cart is empty, send them back to catalog
   useEffect(() => {
     if (items.length === 0) {
       router.push('/catalog');
@@ -36,33 +37,28 @@ export default function CheckoutDetailsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Safety check: If they chose pickup but didn't select a schedule
     if (shippingMethod === 'pickup' && !selectedPickup) {
       alert("Please select a pickup date and time!");
       return;
     }
 
     setIsLoading(true);
-    // Fake loading for transition effect
     setTimeout(() => {
       router.push('/checkout/payment');
     }, 600);
   };
 
-  // Group schedules by Date so we can show them cleanly
   const groupedSchedules = schedules.reduce((acc, curr) => {
     if (!acc[curr.date]) acc[curr.date] = [];
     acc[curr.date].push(curr);
     return acc;
   }, {} as Record<string, typeof schedules>);
 
-  // Format dates nicely (e.g., "Monday, Apr 12")
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
-  // Format times nicely (e.g., "13:00:00" -> "1:00 PM")
   const formatTime = (timeString: string) => {
     const [hours, minutes] = timeString.split(':');
     const h = parseInt(hours);
@@ -71,10 +67,154 @@ export default function CheckoutDetailsPage() {
     return `${formattedHours}:${minutes} ${ampm}`;
   };
 
+  // CART MATH FOR MODAL
+  const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
+  const baseTotal = items.reduce((acc, item) => acc + (item.quantity * 30), 0);
+  const currentTotal = items.reduce((acc, item) => acc + (item.quantity * activeUnitPrice), 0);
+  const totalSavings = baseTotal - currentTotal;
+  const upsellProducts = products.filter(p => !items.some(i => i.id === p.id)).slice(0, 4);
+
+  const handleQuickAdd = (product: any) => {
+    useCheckoutStore.getState().addItem({ id: product.id, name: product.name, price: product.price, quantity: 1 });
+  };
+
   if (items.length === 0) return null;
 
   return (
     <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24">
+      
+      {/* --- CENTERED CART MODAL --- */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+          
+          <div className="bg-[#fdf8f5] w-full max-w-2xl max-h-[90vh] rounded-[24px] shadow-2xl flex flex-col overflow-hidden relative z-10 animate-in zoom-in-95 duration-200 border border-[#f0e8e0]">
+            <div className="flex items-center justify-between p-5 md:p-6 border-b border-[#f0e8e0] bg-white">
+              <h2 className="text-lg md:text-xl font-bold text-[#2C2C2A] flex items-center gap-2">
+                My Bag <span className="text-sm font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{cartItemCount}</span>
+              </h2>
+              <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-5 md:p-6 border-b border-[#f0e8e0] bg-white">
+                {cartItemCount === 0 ? (
+                  <div className="bg-[#FBEAF0] border border-[#D4537E]/20 p-4 rounded-xl flex items-start gap-3">
+                    <Sparkles className="w-5 h-5 text-[#D4537E] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
+                      <p className="text-xs text-gray-600">Buy any 2 stickers to drop the price to ₱24 each.</p>
+                    </div>
+                  </div>
+                ) : cartItemCount === 1 ? (
+                  <div className="bg-[#FBEAF0] border border-[#D4537E]/20 p-4 rounded-xl">
+                    <p className="text-sm font-bold text-[#D4537E] mb-1">You're almost there!</p>
+                    <p className="text-xs text-gray-600 mb-3">Add 1 more sticker to save ₱12 on your order.</p>
+                    <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#D4537E]/20">
+                      <div className="bg-[#D4537E] h-full w-1/2 transition-all duration-500"></div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-[#EAF3DE] border border-[#71A051]/20 p-4 rounded-xl flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-[#71A051] mb-1">Pair Promo Active!</p>
+                      <p className="text-xs text-[#27500A]">You're saving <strong>₱{totalSavings.toFixed(2)}</strong> on this order.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 md:p-6 bg-white">
+                <ul className="space-y-4">
+                  {items.map((item, index) => {
+                    const cartProduct = products.find(p => p.id === item.id);
+                    return (
+                      <li key={`${item.id}-${index}`} className="flex gap-4 items-center bg-white p-3 md:p-4 rounded-[20px] border border-[#f0e8e0] shadow-sm">
+                        <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-[14px] flex-shrink-0 flex items-center justify-center overflow-hidden relative bg-gradient-to-br ${cartProduct?.color || 'from-gray-100 to-gray-200'}`}>
+                          {cartProduct?.frontImage ? (
+                            <img src={cartProduct.frontImage} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xs text-gray-400 font-bold">{item.name.split(' ')[0]}</span>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center rotate-[-25deg] pointer-events-none">
+                            <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">Polycrafted</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col justify-between py-1 pr-2">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                {cartProduct && <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1 block">{cartProduct.category}</span>}
+                                <h4 className="text-sm md:text-base font-bold text-[#2C2C2A] leading-tight line-clamp-1">{item.name}</h4>
+                              </div>
+                              <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500 p-1 transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-end justify-between mt-3">
+                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-8 px-1">
+                              <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3" /></button>
+                              <span className="w-6 text-center text-xs font-bold text-[#2C2C2A]">{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-3 h-3" /></button>
+                            </div>
+                            
+                            <div className="text-right">
+                              {cartItemCount >= 2 && <p className="text-[10px] text-gray-400 line-through mb-0.5">₱{(30 * item.quantity).toFixed(2)}</p>}
+                              <p className="text-sm md:text-base font-black text-[#D4537E]">₱{(activeUnitPrice * item.quantity).toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              {items.length > 0 && upsellProducts.length > 0 && (
+                <div className="p-5 md:p-6 bg-[#fdf8f5] border-t border-[#f0e8e0]">
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">You might also like (Add for just ₱{activeUnitPrice})</p>
+                  <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
+                    {upsellProducts.map(upsell => (
+                      <div key={upsell.id} className="flex-shrink-0 w-28 group cursor-pointer" onClick={() => handleQuickAdd(upsell)}>
+                        <div className={`w-full aspect-[1.58/1] rounded-xl relative overflow-hidden bg-gradient-to-br ${upsell.color} border border-gray-200 mb-2`}>
+                          {upsell.frontImage && <img src={upsell.frontImage} className="w-full h-full object-cover" />}
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <Plus className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-medium text-gray-700 truncate">{upsell.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* MODAL FOOTER */}
+            <div className="p-5 md:p-6 border-t border-[#f0e8e0] bg-white mt-auto">
+              {totalSavings > 0 && <p className="text-xs font-bold text-[#71A051] text-center mb-3">You saved ₱{totalSavings.toFixed(2)} with Pair Pricing!</p>}
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Subtotal</span>
+                <span className="text-2xl font-black text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
+              </div>
+              <button 
+                type="button"
+                className="w-full flex justify-center items-center bg-[#D4537E] text-white py-4 rounded-full text-base font-bold hover:bg-[#b8436b] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                onClick={() => setIsCartOpen(false)}
+              >
+                Continue Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Checkout Header */}
       <div className="bg-white border-b border-[#f0e8e0] sticky top-0 z-30">
@@ -83,10 +223,8 @@ export default function CheckoutDetailsPage() {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-base sm:text-lg font-bold">Shipping Details</h1>
-          <div className="w-9" /> {/* Spacer for centering */}
+          <div className="w-9" />
         </div>
-        
-        {/* Progress Steps */}
         <div className="w-full bg-gray-100 h-1">
           <div className="bg-[#D4537E] h-full w-1/2 rounded-r-full"></div>
         </div>
@@ -105,50 +243,14 @@ export default function CheckoutDetailsPage() {
               <p className="text-base sm:text-lg font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</p>
             </div>
           </div>
-          <Link href="/catalog" className="text-xs font-bold text-[#D4537E] bg-[#FBEAF0] px-3 py-1.5 rounded-full hover:bg-[#f5d6e2] transition-colors">
+          <button type="button" onClick={() => setIsCartOpen(true)} className="text-xs font-bold text-[#D4537E] bg-[#FBEAF0] px-4 py-2 rounded-full hover:bg-[#f5d6e2] transition-colors">
             Edit Bag
-          </Link>
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           
-          {/* SECTION 1: Contact Info */}
-          <section className="bg-white border border-[#f0e8e0] rounded-[24px] p-6 sm:p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                <UserIcon className="w-4 h-4" />
-              </div>
-              <h2 className="text-lg sm:text-xl font-bold">Contact information</h2>
-            </div>
-            
-            <div className="space-y-4 sm:space-y-5">
-              <div>
-                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Full Name</label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input 
-                    required type="text" name="fullName" value={shippingDetails.fullName || (user?.name || '')} onChange={handleChange} 
-                    placeholder="Juan Dela Cruz"
-                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 pl-10 pr-4 text-sm transition-all" 
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input 
-                    required type="tel" name="phone" value={shippingDetails.phone} onChange={handleChange} 
-                    placeholder="0912 345 6789"
-                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 pl-10 pr-4 text-sm transition-all" 
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* SECTION 2: Delivery Method */}
+          {/* SECTION 1: Delivery Method (MOVED UP) */}
           <section className="bg-white border border-[#f0e8e0] rounded-[24px] p-6 sm:p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 rounded-full bg-[#FBEAF0] text-[#D4537E] flex items-center justify-center">
@@ -163,7 +265,6 @@ export default function CheckoutDetailsPage() {
 
             <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
               
-              {/* Option 1: J&T */}
               <label className={`block relative p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${shippingMethod === 'jnt' ? 'border-[#D4537E] bg-[#FBEAF0]/30' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -180,7 +281,6 @@ export default function CheckoutDetailsPage() {
                 <input type="radio" name="shippingMethod" value="jnt" checked={shippingMethod === 'jnt'} onChange={() => setShippingMethod('jnt')} className="hidden" />
               </label>
 
-              {/* Option 2: Lalamove */}
               <label className={`block relative p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${shippingMethod === 'lalamove' ? 'border-[#D4537E] bg-[#FBEAF0]/30' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -197,7 +297,6 @@ export default function CheckoutDetailsPage() {
                 <input type="radio" name="shippingMethod" value="lalamove" checked={shippingMethod === 'lalamove'} onChange={() => setShippingMethod('lalamove')} className="hidden" />
               </label>
 
-              {/* NEW Option 3: Campus Pickup (Only heavily promoted if logged in as PUP) */}
               <label className={`block relative p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${shippingMethod === 'pickup' ? 'border-[#D4537E] bg-[#FBEAF0]/30' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -208,7 +307,7 @@ export default function CheckoutDetailsPage() {
                       <span className="block font-bold text-sm sm:text-base text-[#2C2C2A] flex items-center gap-2">
                         Campus Meetup <span className="bg-[#71A051] text-white text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider">Free</span>
                       </span>
-                      <span className="text-[10px] sm:text-xs text-gray-500 mt-0.5 block">PUP Manila Main Campus (Mural/Pylon)</span>
+                      <span className="text-[10px] sm:text-xs text-gray-500 mt-0.5 block">PUP Manila Main Campus</span>
                     </div>
                   </div>
                   <Store className={`w-5 h-5 ${shippingMethod === 'pickup' ? 'text-[#D4537E]' : 'text-gray-400'}`} />
@@ -216,24 +315,6 @@ export default function CheckoutDetailsPage() {
                 <input type="radio" name="shippingMethod" value="pickup" checked={shippingMethod === 'pickup'} onChange={() => setShippingMethod('pickup')} className="hidden" />
               </label>
             </div>
-
-            {/* DYNAMIC CONTENT BASED ON SHIPPING SELECTION */}
-            
-            {/* Show Address Field if Delivery */}
-            {shippingMethod !== 'pickup' && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Complete Delivery Address</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-4 w-4 h-4 text-gray-400" />
-                  <textarea 
-                    required name="address" value={shippingDetails.address} onChange={handleChange} 
-                    placeholder="House/Unit No., Street Name, Barangay, City/Province, Zip Code"
-                    rows={3}
-                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 pl-10 pr-4 text-sm transition-all resize-none" 
-                  />
-                </div>
-              </div>
-            )}
 
             {/* Show Scheduler if Campus Pickup */}
             {shippingMethod === 'pickup' && (
@@ -288,7 +369,62 @@ export default function CheckoutDetailsPage() {
                 )}
               </div>
             )}
+          </section>
+
+          {/* SECTION 2: Contact Info (MOVED DOWN) */}
+          <section className="bg-white border border-[#f0e8e0] rounded-[24px] p-6 sm:p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                <UserIcon className="w-4 h-4" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold">Contact information</h2>
+            </div>
             
+            <div className="space-y-4 sm:space-y-5">
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Full Name</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    required type="text" name="fullName" value={shippingDetails.fullName || (user?.name || '')} onChange={handleChange} 
+                    placeholder="Juan Dela Cruz"
+                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 pl-10 pr-4 text-sm transition-all" 
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Phone Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    required type="tel" name="phone" value={shippingDetails.phone} onChange={handleChange} 
+                    placeholder="0912 345 6789"
+                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 pl-10 pr-4 text-sm transition-all" 
+                  />
+                </div>
+              </div>
+
+              <div className={`transition-all duration-300 ${shippingMethod === 'pickup' ? 'opacity-50 grayscale' : ''}`}>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">
+                  Complete Delivery Address 
+                  {shippingMethod === 'pickup' && <span className="text-[#D4537E] normal-case tracking-normal font-medium ml-2">(Not needed for Campus Meetup)</span>}
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-4 w-4 h-4 text-gray-400" />
+                  <textarea 
+                    required={shippingMethod !== 'pickup'} 
+                    disabled={shippingMethod === 'pickup'}
+                    name="address" 
+                    value={shippingDetails.address} 
+                    onChange={handleChange} 
+                    placeholder="House/Unit No., Street Name, Barangay, City/Province, Zip Code. (Please include a landmark)"
+                    rows={3}
+                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 pl-10 pr-4 text-sm transition-all resize-none disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" 
+                  />
+                </div>
+              </div>
+            </div>
           </section>
 
           <button 
