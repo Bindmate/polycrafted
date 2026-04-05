@@ -36,7 +36,6 @@ export default function CatalogPage() {
 
   const handleShare = (productName: string, e: React.MouseEvent) => {
     e.preventDefault();
-    // Use Web Share API if available on mobile, fallback to alert
     if (navigator.share) {
       navigator.share({
         title: `Polycrafted - ${productName}`,
@@ -78,7 +77,7 @@ export default function CatalogPage() {
   return (
     <div className="min-h-screen bg-[#fdf8f5] text-gray-800 font-sans pb-24 relative overflow-x-hidden">
       
-      {/* --- SLIDE-OUT CART DRAWER --- */}
+      {/* --- UPGRADED SLIDE-OUT CART DRAWER --- */}
       {isCartOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-50 transition-opacity backdrop-blur-sm"
@@ -86,10 +85,10 @@ export default function CatalogPage() {
         />
       )}
       
-      <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
+      <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-[#fdf8f5] z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
         isCartOpen ? "translate-x-0" : "translate-x-full"
       }`}>
-        <div className="flex items-center justify-between p-5 md:p-6 border-b border-[#f0e8e0]">
+        <div className="flex items-center justify-between p-5 md:p-6 border-b border-[#f0e8e0] bg-white">
           <h2 className="text-lg md:text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
             My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} items)</span>
           </h2>
@@ -101,7 +100,7 @@ export default function CatalogPage() {
         <div className="flex-1 overflow-y-auto">
           
           {/* VOLUME PRICING PROGRESS BAR */}
-          <div className="bg-[#FBEAF0]/50 p-5 md:p-6 border-b border-[#f0e8e0]">
+          <div className="bg-white p-5 md:p-6 border-b border-[#f0e8e0] mb-4">
             {cartItemCount === 0 ? (
                <div>
                  <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
@@ -111,7 +110,7 @@ export default function CatalogPage() {
                <div>
                  <p className="text-sm font-bold text-[#D4537E] mb-1">You're almost there!</p>
                  <p className="text-xs text-gray-600 mb-3">Add 1 more sticker to save ₱12 on your order.</p>
-                 <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
+                 <div className="w-full bg-[#f0e8e0] h-2 rounded-full overflow-hidden">
                    <div className="bg-[#D4537E] h-full w-1/2 transition-all duration-500"></div>
                  </div>
                </div>
@@ -119,16 +118,16 @@ export default function CatalogPage() {
                <div>
                  <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Pair Promo Active!</p>
                  <p className="text-xs text-gray-600 mb-3">Awesome! All stickers are now only ₱24.00 each.</p>
-                 <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
+                 <div className="w-full bg-[#f0e8e0] h-2 rounded-full overflow-hidden">
                    <div className="bg-[#71A051] h-full w-full transition-all duration-500"></div>
                  </div>
                </div>
             )}
           </div>
 
-          <div className="p-5 md:p-6">
+          <div className="px-5 md:px-6 pb-6">
             {items.length === 0 ? (
-              <div className="h-60 flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
+              <div className="h-40 flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
                 <ShoppingBag className="w-16 h-16 text-gray-300" />
                 <p className="text-base">Your bag is empty.</p>
                 <button 
@@ -139,40 +138,48 @@ export default function CatalogPage() {
                 </button>
               </div>
             ) : (
-              <ul className="space-y-6">
-                {items.map((item, index) => (
-                  <li key={`${item.id}-${index}`} className="flex gap-4 items-center">
-                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2 overflow-hidden relative select-none">
-                      {item.name.split(' ')[0]}
-                      {/* White text watermark, 50% opacity, rotated */}
-                      <div className="absolute inset-0 flex items-center justify-center rotate-[-25deg] pointer-events-none">
-                        <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">Polycrafted</span>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-[#2C2C2A] line-clamp-2">{item.name}</h4>
-                      <p className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</p>
-                      
-                      {/* Dynamic Pricing Display */}
-                      <p className="text-sm font-bold text-[#2C2C2A] mt-1 flex items-center gap-2">
-                        ₱{(activeUnitPrice * item.quantity).toFixed(2)}
-                        {cartItemCount >= 2 && (
-                          <span className="text-[11px] text-gray-400 line-through font-normal">
-                            ₱{(30 * item.quantity).toFixed(2)}
-                          </span>
+              <ul className="space-y-4">
+                {items.map((item, index) => {
+                  // Find the actual product in the DB to grab its real image
+                  const cartProduct = products.find(p => p.id === item.id);
+                  
+                  return (
+                    <li key={`${item.id}-${index}`} className="flex gap-4 items-center bg-white p-3 rounded-[16px] border border-[#f0e8e0] shadow-sm">
+                      <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden relative bg-gradient-to-br ${cartProduct?.color || 'from-gray-100 to-gray-200'}`}>
+                        {cartProduct?.frontImage ? (
+                          <img src={cartProduct.frontImage} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] text-gray-400 font-bold">{item.name.split(' ')[0]}</span>
                         )}
-                      </p>
-
-                    </div>
-                  </li>
-                ))}
+                      </div>
+                      <div className="flex-1 py-1 pr-2">
+                        <h4 className="text-sm font-bold text-[#2C2C2A] leading-tight mb-1 line-clamp-2">{item.name}</h4>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-100 px-2 py-1 rounded-md">
+                            Qty: {item.quantity}
+                          </span>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-[#D4537E]">
+                              ₱{(activeUnitPrice * item.quantity).toFixed(2)}
+                            </p>
+                            {cartItemCount >= 2 && (
+                              <p className="text-[10px] text-gray-400 line-through">
+                                ₱{(30 * item.quantity).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
         </div>
 
         {items.length > 0 && (
-          <div className="p-5 md:p-6 border-t border-[#f0e8e0] bg-[#fdf8f5] mt-auto">
+          <div className="p-5 md:p-6 border-t border-[#f0e8e0] bg-white mt-auto shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
             <div className="flex justify-between items-center mb-5">
               <span className="text-base font-medium text-[#2C2C2A]">Subtotal</span>
               <span className="text-2xl font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
@@ -197,7 +204,6 @@ export default function CatalogPage() {
             pup<span className="text-[#D4537E]">merch</span>
           </Link>
 
-          {/* Search - hidden on very small mobile, shown on sm+ */}
           <div className="hidden sm:block relative flex-1 max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
@@ -210,7 +216,6 @@ export default function CatalogPage() {
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
-            {/* Search Icon for mobile */}
             <button className="sm:hidden p-2 text-gray-600 hover:text-[#D4537E]">
                 <Search className="w-5 h-5" />
             </button>
@@ -247,7 +252,7 @@ export default function CatalogPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-10">
         
-        {/* SOFT HERO BANNER */}
+        {/* SOFT HERO BANNER (RESTORED 3D CARDS) */}
         <div className="relative overflow-hidden rounded-[20px] md:rounded-[24px] bg-[#FBEAF0] p-6 sm:p-8 md:p-12 mb-6 md:mb-8 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 border border-[#f0e8e0]">
           <div className="relative z-10 max-w-xl text-center md:text-left">
             <span className="inline-block py-1 px-3 rounded-full bg-white/60 text-[#D4537E] text-xs font-medium mb-3">Just dropped</span>
@@ -256,22 +261,19 @@ export default function CatalogPage() {
               Upgrade your daily commute with our newest aesthetic drops. Handcrafted for the modern student.
             </p>
           </div>
-          {/* Placeholder for hero image/graphic to make it feel full on desktop */}
-          <div className="w-32 h-32 md:w-48 md:h-48 bg-[#D4537E]/10 rounded-full flex-shrink-0 relative opacity-50 md:opacity-100">
-             <div className="absolute inset-0 flex items-center justify-center rotate-[-20deg]">
-                <span className="text-xl font-black text-[#D4537E]/20 tracking-widest uppercase">Polycrafted</span>
-              </div>
+          
+          {/* RESTORED: The stacked 3D cards */}
+          <div className="relative w-48 h-48 hidden md:block">
+            <div className="absolute top-4 right-0 w-32 h-44 bg-gradient-to-br from-pink-200 to-rose-300 rounded-[12px] shadow-sm rotate-12 border border-white/50"></div>
+            <div className="absolute top-2 right-8 w-32 h-44 bg-gradient-to-br from-fuchsia-200 to-purple-200 rounded-[12px] shadow-md rotate-6 border border-white/50"></div>
+            <div className="absolute top-0 right-16 w-32 h-44 bg-gradient-to-br from-[#fdf8f5] to-[#f0e8e0] rounded-[12px] shadow-lg border border-white flex items-center justify-center p-4 text-center">
+            </div>
           </div>
         </div>
 
         {/* Promo Banner (Only shows if logged out) */}
         {!user && (
           <Link href="/account" className="block bg-gradient-to-r from-white to-[#fdf8f5] border border-[#f0e8e0] rounded-[16px] p-4 md:p-5 mb-6 md:mb-8 shadow-sm hover:border-[#D4537E]/40 transition-colors group relative overflow-hidden">
-             {/* Background Watermark for banner */}
-            <div className="absolute inset-0 flex items-center justify-center rotate-[-5deg] opacity-[0.03] pointer-events-none select-none">
-                <span className="text-6xl font-bold text-black tracking-widest uppercase">Polycrafted</span>
-            </div>
-            
             <div className="flex items-center justify-between gap-4 relative z-10">
               <div className="flex items-center gap-3 md:gap-4">
                 <div className="w-10 h-10 md:w-12 md:h-12 bg-[#FBEAF0] text-[#D4537E] rounded-full flex items-center justify-center flex-shrink-0">
@@ -290,7 +292,6 @@ export default function CatalogPage() {
         {/* BROWSE BY VIBE */}
         <div className="mb-6 md:mb-8">
           <p className="text-xs md:text-sm font-medium text-gray-500 mb-3 md:mb-4">Browse by vibe</p>
-          {/* Added negative margin on mobile to allow bleeding items */}
           <div className="flex overflow-x-auto gap-2.5 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar snap-x">
             {VIBES.map((vibe, i) => {
               const pastelBgs = ['bg-[#fdf8f5]', 'bg-[#FBEAF0]', 'bg-[#EEEDFE]', 'bg-[#EAF3DE]', 'bg-[#FAEEDA]'];
@@ -332,7 +333,7 @@ export default function CatalogPage() {
           </div>
         </div>
 
-        {/* PRODUCT GRID - adjusted cols for mobile/tablet */}
+        {/* PRODUCT GRID */}
         <div className="grid gap-x-4 gap-y-8 xs:gap-x-5 xs:gap-y-10 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {displayProducts.map((product) => {
             const isSaved = wishlist.includes(product.id);
@@ -360,28 +361,22 @@ export default function CatalogPage() {
                     className={`aspect-[1.58/1] w-full bg-gradient-to-br ${product.color} relative flex items-center justify-center p-6 text-center select-none`}
                     style={{ backgroundImage: `url('${product.frontImage}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                   >
-                    {/* --- WHITE TEXT WATERMARK --- */}
+                    {/* THE WATERMARK: Only on the product image! */}
                     <div className="absolute inset-0 flex items-center justify-center rotate-[-25deg] pointer-events-none z-0">
-                      <span className="text-2xl xs:text-3xl md:text-4xl font-bold text-white/50 tracking-widest uppercase">
+                      <span className="text-xl xs:text-2xl md:text-3xl font-black text-white/60 tracking-widest uppercase drop-shadow-md">
                         Polycrafted
                       </span>
                     </div>
 
-                    {/* Badges - Adjusted for mobile */}
+                    {/* Badges */}
                     <div className="absolute top-2 left-2 xs:top-3 xs:left-3 flex flex-col gap-1.5 items-start z-10">
                       {product.badge && (
                         <span className={`text-[9px] xs:text-[10px] uppercase tracking-wider font-semibold px-2 xs:px-2.5 py-1 rounded-full shadow-sm ${getBadgeStyle(product.badge)}`}>
                           {product.badge}
                         </span>
                       )}
-                      {product.backImage && (
-                        <span className="text-[9px] xs:text-[10px] bg-indigo-50/90 border border-indigo-100 backdrop-blur-sm text-indigo-700 uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-sm">
-                          Back-to-Back
-                        </span>
-                      )}
                     </div>
 
-                    {/* Action Buttons - Always visible on mobile, hover on desktop */}
                     <div className="absolute top-2 right-2 xs:top-3 xs:right-3 z-20 flex flex-col gap-1.5 xs:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => {
@@ -403,7 +398,6 @@ export default function CatalogPage() {
                       </button>
                     </div>
 
-                    {/* Quick Add - adjusted for mobile interaction */}
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex items-end md:items-center justify-center p-3 xs:p-4">
                       <div className="w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hidden md:block">
                         <button 
@@ -413,7 +407,6 @@ export default function CatalogPage() {
                           <Plus className="w-4 h-4 text-[#D4537E]" /> Add to bag
                         </button>
                       </div>
-                       {/* Mobile Quick Add tap area hint */}
                        <div className="md:hidden absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-[#D4537E]">
                            <Plus className="w-4 h-4" onClick={(e) => handleQuickAdd(product, e)}/>
                        </div>
@@ -443,7 +436,6 @@ export default function CatalogPage() {
                     </div>
                   </div>
 
-                  {/* Pricing Display */}
                   <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1">
                     <p className="text-base xs:text-lg font-bold text-[#2C2C2A]">₱{product.price.toFixed(2)}</p>
                     <span className="text-[10px] xs:text-[11px] bg-[#EAF3DE] text-[#27500A] px-2 py-0.5 rounded-md font-medium whitespace-nowrap">
@@ -456,7 +448,6 @@ export default function CatalogPage() {
           })}
         </div>
         
-        {/* Empty State */}
         {displayProducts.length === 0 && (
             <div className="text-center py-20 px-4 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl bg-white/50 mt-10">
                 <Search className="w-16 h-16 text-gray-300 mb-6" />
@@ -472,7 +463,6 @@ export default function CatalogPage() {
         )}
       </div>
       
-      {/* Dynamic spacing utility class added for mobile Safari bottom bar */}
       <div className="h-safe-bottom"></div>
     </div>
   );
