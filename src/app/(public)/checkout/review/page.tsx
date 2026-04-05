@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store, Sparkles, ScanLine } from "lucide-react";
-import Tesseract from 'tesseract.js'; // NEW: Import the real AI OCR
+import Tesseract from 'tesseract.js'; 
 
 export default function ReviewStep() {
   const router = useRouter();
@@ -45,28 +45,41 @@ export default function ReviewStep() {
       setFileObject(file);
       setFileName(file.name);
       
-      // --- THE REAL AI SCANNER ---
       setIsScanning(true);
       setAiDidFill(false);
       setReferenceNo(""); // Clear old number while scanning
       
       try {
-        // 1. Tell Tesseract to read the English numbers on the image
         const result = await Tesseract.recognize(file, 'eng');
         const rawText = result.data.text;
 
-        // 2. Clean the text (GCash often puts spaces between the reference numbers)
-        const cleanedText = rawText.replace(/\s+/g, '');
+        // 1. Clean the text to remove spaces, dashes, etc.
+        const cleanedText = rawText.replace(/[\s\-]+/g, '');
 
-        // 3. Use Regex to hunt for exactly 12 or 13 consecutive numbers
-        // GCash is usually 13 digits, Maya is sometimes 12.
-        const match = cleanedText.match(/\d{12,13}/);
+        // 2. Find ALL sequences of 12 to 13 digits in the receipt
+        const matches = cleanedText.match(/\d{12,13}/g);
 
-        if (match) {
-          setReferenceNo(match[0]); // Boom! Found it.
-          setAiDidFill(true);
+        if (matches) {
+          let foundRef = null;
+
+          // 3. SMART FILTER: Look through all the numbers it found
+          for (const m of matches) {
+            // Skip if it looks like a Philippine phone number (+639... or 09...)
+            if (m.startsWith('639') || m.startsWith('09')) {
+              continue;
+            }
+            // The first match that ISN'T a phone number is our true Ref No!
+            foundRef = m;
+            break;
+          }
+
+          if (foundRef) {
+            setReferenceNo(foundRef);
+            setAiDidFill(true);
+          } else {
+            alert("Our AI couldn't clearly read the Reference Number from that image. Please type it in manually.");
+          }
         } else {
-          // If the image is blurry and it can't find a 13 digit number
           alert("Our AI couldn't clearly read the Reference Number from that image. Please type it in manually.");
         }
 
