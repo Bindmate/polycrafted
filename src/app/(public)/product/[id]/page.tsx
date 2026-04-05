@@ -4,37 +4,28 @@ import Link from "next/link";
 import { 
   ShoppingBag, Heart, ChevronRight, Star, Plus, Minus, 
   CheckCircle2, Copy, MessageCircle, Camera, Smartphone, 
-  Droplets, ShieldCheck, HelpCircle, LayoutGrid, X, Layers, RefreshCw
+  Droplets, ShieldCheck, HelpCircle, LayoutGrid, X, Layers
 } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
-// UPGRADED 3D CSS ANIMATION (Now with Flipping!)
+// UPGRADED 3D CSS ANIMATION: Continuous 360 Spin!
 const style = `
-  @keyframes sway {
-    0% { transform: rotateY(-8deg) rotateX(4deg); }
-    50% { transform: rotateY(8deg) rotateX(-4deg); }
-    100% { transform: rotateY(-4deg) rotateX(8deg); }
+  @keyframes spin-card {
+    0% { transform: rotateY(0deg) rotateX(4deg); }
+    50% { transform: rotateY(180deg) rotateX(-2deg); }
+    100% { transform: rotateY(360deg) rotateX(4deg); }
   }
   .perspective-container { perspective: 1200px; }
   
-  .sway-wrapper {
-    animation: sway 7s ease-in-out infinite alternate;
+  .spin-wrapper {
+    animation: spin-card 12s linear infinite;
     transform-style: preserve-3d;
     width: 85%;
     height: 100%;
-  }
-  .sway-wrapper:hover { animation-play-state: paused; }
-
-  .flip-card {
-    transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
-    transform-style: preserve-3d;
-    width: 100%;
-    height: 100%;
     position: relative;
   }
-  
-  .flip-card.is-flipped {
-    transform: rotateY(180deg);
+  .spin-wrapper:hover { 
+    animation-play-state: paused; 
   }
 
   .card-face {
@@ -67,7 +58,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   
   const [quantity, setQuantity] = useState(1);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isFlipped, setIsFlipped] = useState(false); // NEW: State to track 3D flip
 
   const product = products.find((p) => p.id === resolvedParams.id);
 
@@ -213,42 +203,35 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           
           {/* LEFT COLUMN: 3D Image Area */}
           <div className="flex flex-col items-center">
-            <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-8 cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
+            <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-8">
               
-              {/* THE 3D FLIP WRAPPER */}
-              <div className="sway-wrapper">
-                <div className={`flip-card ${isFlipped ? 'is-flipped' : ''}`}>
+              {/* THE CONTINUOUS SPIN WRAPPER */}
+              <div className="spin-wrapper">
                   
-                  {/* SIDE A: FRONT */}
-                  <div className={`card-face card-depth shadow-2xl bg-gradient-to-br ${product.color}`}>
-                    <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.frontImage}')` }} />
-                  </div>
-
-                  {/* SIDE B: BACK */}
-                  <div className="card-face card-back card-depth shadow-2xl bg-gray-100">
-                    {product.backImage ? (
-                      <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.backImage}')` }} />
-                    ) : (
-                      <div className="absolute inset-0 w-full h-full bg-gray-200 flex flex-col items-center justify-center border-4 border-gray-300 border-dashed rounded-[20px] p-6 text-center">
-                        <Layers className="w-10 h-10 text-gray-400 mb-3" />
-                        <p className="text-gray-500 font-bold text-base">Blank Backing</p>
-                        <p className="text-gray-400 text-xs mt-1 px-4">Mix & match with another design to complete your card!</p>
-                      </div>
-                    )}
-                  </div>
-
+                {/* SIDE A: FRONT */}
+                <div className={`card-face card-depth shadow-2xl bg-gradient-to-br ${product.color}`}>
+                  <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.frontImage}')` }} />
                 </div>
+
+                {/* SIDE B: BACK */}
+                <div className="card-face card-back card-depth shadow-2xl bg-gray-100">
+                  {product.backImage ? (
+                    <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.backImage}')` }} />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full bg-gray-200 flex flex-col items-center justify-center border-4 border-gray-300 border-dashed rounded-[20px] p-6 text-center">
+                      <Layers className="w-10 h-10 text-gray-400 mb-3" />
+                      <p className="text-gray-500 font-bold text-base">Blank Backing</p>
+                      <p className="text-gray-400 text-xs mt-1 px-4">Mix & match with another design to complete your card!</p>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
 
-            {/* Flip Controls */}
-            <button 
-              onClick={() => setIsFlipped(!isFlipped)}
-              className="mt-6 flex items-center gap-2 bg-white border border-gray-200 px-5 py-2.5 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-all hover:scale-105"
-            >
-              <RefreshCw className="w-4 h-4" />
-              {isFlipped ? "View Front Design" : "View Back Design"}
-            </button>
+            <p className="text-xs text-gray-400 font-medium mt-4 text-center">
+              Hover card to pause
+            </p>
 
             {/* Share Buttons */}
             <div className="flex items-center gap-3 mt-8 text-sm font-medium text-gray-500">
@@ -477,29 +460,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </p>
           </div>
 
-        </div>
-      </section>
-      
-      <hr className="border-[#f0e8e0] my-16 max-w-7xl mx-auto" />
-
-      {/* SECTION 5: Common Questions */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 mb-8">
-          <HelpCircle className="w-6 h-6 text-[#D4537E]" />
-          <h2 className="text-xl font-medium text-[#2C2C2A]">Common questions</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[
-            { q: "Will the sticker block my Beep card from tapping?", a: "Nope! Our stickers are ultra-thin (0.1mm) and made from materials that allow NFC and RFID signals to pass through easily. It works perfectly on MRT/LRT gates." },
-            { q: "Can I remove it without damaging my card?", a: "Yes, definitely. We use a special adhesive that holds strong but peels off cleanly without leaving sticky residue behind." },
-            { q: "How long does shipping take?", a: "For Metro Manila, usually 1-3 days via standard local couriers (like J&T or Lalamove for rush orders). Provincial areas take 3-7 days." },
-            { q: "Do you have a COD option?", a: "Yes, we support Cash on Delivery! We also accept GCash, Maya, and direct bank transfers for seamless checkout." }
-          ].map((faq, i) => (
-            <div key={i} className="bg-white border border-[#f0e8e0] rounded-[18px] p-6 shadow-sm">
-              <h3 className="font-medium text-[#2C2C2A] mb-2">{faq.q}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{faq.a}</p>
-            </div>
-          ))}
         </div>
       </section>
 
