@@ -4,23 +4,52 @@ import Link from "next/link";
 import { 
   ShoppingBag, Heart, ChevronRight, Star, Plus, Minus, 
   CheckCircle2, Copy, MessageCircle, Camera, Smartphone, 
-  Droplets, ShieldCheck, HelpCircle, LayoutGrid, X, Layers
+  Droplets, ShieldCheck, HelpCircle, LayoutGrid, X, Layers, RefreshCw
 } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
-// THE 3D CSS ANIMATION
+// UPGRADED 3D CSS ANIMATION (Now with Flipping!)
 const style = `
   @keyframes sway {
-    0% { transform: rotateY(-12deg) rotateX(4deg); }
-    50% { transform: rotateY(12deg) rotateX(-4deg); }
+    0% { transform: rotateY(-8deg) rotateX(4deg); }
+    50% { transform: rotateY(8deg) rotateX(-4deg); }
     100% { transform: rotateY(-4deg) rotateX(8deg); }
   }
   .perspective-container { perspective: 1200px; }
-  .sway-card {
+  
+  .sway-wrapper {
     animation: sway 7s ease-in-out infinite alternate;
     transform-style: preserve-3d;
+    width: 85%;
+    height: 100%;
   }
-  .sway-card:hover { animation-play-state: paused; }
+  .sway-wrapper:hover { animation-play-state: paused; }
+
+  .flip-card {
+    transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  
+  .flip-card.is-flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .card-back {
+    transform: rotateY(180deg);
+  }
+
   .card-depth::before {
     content: '';
     position: absolute;
@@ -34,16 +63,14 @@ const style = `
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  // PULL GLOBAL STATE FROM STORE
   const { addItem, items, getTotal, products, wishlist, toggleWishlist } = useCheckoutStore();
   
   const [quantity, setQuantity] = useState(1);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false); // NEW: State to track 3D flip
 
-  // FIND THE PRODUCT BASED ON THE URL ID FROM THE STORE ARRAY
   const product = products.find((p) => p.id === resolvedParams.id);
 
-  // If someone types an invalid ID like /product/999
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">
@@ -65,11 +92,16 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     setIsCartOpen(true);
   };
 
+  const handleAddUpsellToCart = (upsellProduct: any) => {
+    addItem({ id: upsellProduct.id, name: upsellProduct.name, price: upsellProduct.price, quantity: 1 });
+    setIsCartOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24 relative">
       <style>{style}</style>
 
-      {/* --- UPGRADED SLIDE-OUT CART DRAWER --- */}
+      {/* --- SLIDE-OUT CART DRAWER --- */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
       )}
@@ -83,7 +115,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {/* THE NEW VOLUME PRICING PROGRESS BAR */}
+          {/* VOLUME PRICING PROGRESS BAR */}
           <div className="bg-[#FBEAF0]/50 p-6 border-b border-[#f0e8e0]">
             {cartItemCount === 0 ? (
                <div>
@@ -181,25 +213,48 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           
           {/* LEFT COLUMN: 3D Image Area */}
           <div className="flex flex-col items-center">
-            <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-8">
-              <div className={`sway-card card-depth w-[85%] h-full rounded-[20px] shadow-2xl relative overflow-hidden bg-gradient-to-br ${product.color}`}>
-                <div 
-                  className="absolute inset-0 w-full h-full bg-cover bg-center z-0"
-                  style={{ backgroundImage: `url('${product.frontImage}')` }}
-                />
+            <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-8 cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
+              
+              {/* THE 3D FLIP WRAPPER */}
+              <div className="sway-wrapper">
+                <div className={`flip-card ${isFlipped ? 'is-flipped' : ''}`}>
+                  
+                  {/* SIDE A: FRONT */}
+                  <div className={`card-face card-depth shadow-2xl bg-gradient-to-br ${product.color}`}>
+                    <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.frontImage}')` }} />
+                  </div>
+
+                  {/* SIDE B: BACK */}
+                  <div className="card-face card-back card-depth shadow-2xl bg-gray-100">
+                    {product.backImage ? (
+                      <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.backImage}')` }} />
+                    ) : (
+                      <div className="absolute inset-0 w-full h-full bg-gray-200 flex flex-col items-center justify-center border-4 border-gray-300 border-dashed rounded-[20px] p-6 text-center">
+                        <Layers className="w-10 h-10 text-gray-400 mb-3" />
+                        <p className="text-gray-500 font-bold text-base">Blank Backing</p>
+                        <p className="text-gray-400 text-xs mt-1 px-4">Mix & match with another design to complete your card!</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
               </div>
             </div>
 
-            <p className="text-xs text-gray-400 font-medium mt-4 text-center">
-              Hover card to pause
-            </p>
+            {/* Flip Controls */}
+            <button 
+              onClick={() => setIsFlipped(!isFlipped)}
+              className="mt-6 flex items-center gap-2 bg-white border border-gray-200 px-5 py-2.5 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-all hover:scale-105"
+            >
+              <RefreshCw className="w-4 h-4" />
+              {isFlipped ? "View Front Design" : "View Back Design"}
+            </button>
 
             {/* Share Buttons */}
-            <div className="flex items-center gap-3 mt-10 text-sm font-medium text-gray-500">
+            <div className="flex items-center gap-3 mt-8 text-sm font-medium text-gray-500">
               <span>Share design:</span>
-              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors"><Copy className="w-3.5 h-3.5" /> Copy link</button>
+              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors"><Copy className="w-3.5 h-3.5" /> Copy</button>
               <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors text-pink-600"><Camera className="w-3.5 h-3.5" /> IG</button>
-              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors text-blue-600"><MessageCircle className="w-3.5 h-3.5" /> Chat</button>
             </div>
           </div>
 
@@ -237,7 +292,36 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-8">
+            {/* UPSELL WIDGET: Only show if this is a Solo design (no backImage) */}
+            {!product.backImage && (
+              <div className="bg-[#FBEAF0]/50 border border-[#D4537E]/30 rounded-xl p-5 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-[#D4537E]" />
+                    <h3 className="font-bold text-[#D4537E]">Complete your pair!</h3>
+                  </div>
+                  <span className="bg-[#D4537E] text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">SAVE ₱12</span>
+                </div>
+                <p className="text-xs text-gray-600 mb-4 leading-relaxed">You selected a Front design. Add any Back design below to complete your Beep card and unlock the ₱48 pair promo.</p>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Find 3 other solo products to recommend */}
+                  {products.filter(p => p.id !== product.id && !p.backImage).slice(0, 3).map((upsell) => (
+                    <div key={upsell.id} className="text-center group cursor-pointer" onClick={() => handleAddUpsellToCart(upsell)}>
+                      <div className={`aspect-[1.58/1] w-full bg-gradient-to-br ${upsell.color} rounded-lg border border-[#f0e8e0] mb-2 overflow-hidden relative shadow-sm group-hover:shadow-md transition-all`}>
+                        {upsell.frontImage && <img src={upsell.frontImage} className="w-full h-full object-cover" />}
+                        <div className="absolute inset-0 bg-[#D4537E]/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
+                          <span className="text-white text-xs font-bold flex items-center gap-1"><Plus className="w-3 h-3"/> Add Back</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-medium text-gray-700 truncate px-1">{upsell.name}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-6">
               <span className={`w-2 h-2 rounded-full animate-pulse ${product.stock <= 5 ? 'bg-red-500' : 'bg-[#D28E3D]'}`}></span>
               <span className={`text-sm font-medium ${product.stock <= 5 ? 'text-red-500' : 'text-[#D28E3D]'}`}>
                 {product.stock <= 5 ? `Almost gone! Only ${product.stock} left` : `Only ${product.stock} left in stock — order soon`}
@@ -245,29 +329,16 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex items-center bg-white border border-[#f0e8e0] rounded-full h-12 px-2 shadow-sm">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-4 h-4" /></button>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="flex items-center bg-white border border-[#f0e8e0] rounded-full h-14 px-2 shadow-sm">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-4 h-4" /></button>
                 <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-4 h-4" /></button>
+                <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-4 h-4" /></button>
               </div>
               
-              <button onClick={handleAddToCart} className="flex-1 bg-[#D4537E] text-white h-12 rounded-full text-base font-medium shadow-sm hover:bg-[#b8436b] transition-all transform hover:scale-[1.02]">
+              <button onClick={handleAddToCart} className="flex-1 bg-[#D4537E] text-white h-14 rounded-full text-base font-bold shadow-md hover:bg-[#b8436b] transition-all transform hover:scale-[1.02]">
                 Add to bag
               </button>
-              
-              <button 
-                onClick={() => toggleWishlist(product.id)} 
-                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${
-                  isSaved ? 'border-[#D4537E] bg-[#FBEAF0]' : 'border-[#f0e8e0] bg-white hover:border-gray-300'
-                }`}
-              >
-                <Heart className={`w-5 h-5 transition-colors ${isSaved ? 'fill-[#D4537E] text-[#D4537E]' : 'text-[#D4537E]'}`} />
-              </button>
-            </div>
-
-            <div className="bg-[#FAEEDA]/50 border border-[#FAEEDA] rounded-[14px] p-4 text-center mb-8">
-              <span className="text-[#633806] text-sm font-medium">✨ Pair any 2 stickers to unlock the promo price</span>
             </div>
 
             <ul className="space-y-3 mb-8">
@@ -286,7 +357,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <span className="bg-gray-100 text-gray-700 text-[11px] font-medium px-3 py-1.5 rounded-full border border-gray-200">Bank Transfer</span>
               </div>
             </div>
-
           </div>
         </div>
       </main>
@@ -407,6 +477,29 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </p>
           </div>
 
+        </div>
+      </section>
+      
+      <hr className="border-[#f0e8e0] my-16 max-w-7xl mx-auto" />
+
+      {/* SECTION 5: Common Questions */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3 mb-8">
+          <HelpCircle className="w-6 h-6 text-[#D4537E]" />
+          <h2 className="text-xl font-medium text-[#2C2C2A]">Common questions</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            { q: "Will the sticker block my Beep card from tapping?", a: "Nope! Our stickers are ultra-thin (0.1mm) and made from materials that allow NFC and RFID signals to pass through easily. It works perfectly on MRT/LRT gates." },
+            { q: "Can I remove it without damaging my card?", a: "Yes, definitely. We use a special adhesive that holds strong but peels off cleanly without leaving sticky residue behind." },
+            { q: "How long does shipping take?", a: "For Metro Manila, usually 1-3 days via standard local couriers (like J&T or Lalamove for rush orders). Provincial areas take 3-7 days." },
+            { q: "Do you have a COD option?", a: "Yes, we support Cash on Delivery! We also accept GCash, Maya, and direct bank transfers for seamless checkout." }
+          ].map((faq, i) => (
+            <div key={i} className="bg-white border border-[#f0e8e0] rounded-[18px] p-6 shadow-sm">
+              <h3 className="font-medium text-[#2C2C2A] mb-2">{faq.q}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{faq.a}</p>
+            </div>
+          ))}
         </div>
       </section>
 
