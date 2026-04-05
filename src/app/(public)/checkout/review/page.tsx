@@ -2,18 +2,20 @@
 import { useState } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store } from "lucide-react";
+import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store, Sparkles, ScanLine } from "lucide-react";
 
 export default function ReviewStep() {
   const router = useRouter();
   
-  // PULL IN THE NEW placeOrder FUNCTION!
   const { shippingDetails, paymentMethod, shippingMethod, selectedPickup, getTotal, placeOrder } = useCheckoutStore();
   
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileObject, setFileObject] = useState<File | null>(null);
   const [referenceNo, setReferenceNo] = useState("");
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false); // NEW: AI Scanning State
+  const [aiDidFill, setAiDidFill] = useState(false); // NEW: Track if AI filled it
 
   const handlePlaceOrder = async () => {
     if (!fileName || !fileObject || !referenceNo) {
@@ -23,7 +25,6 @@ export default function ReviewStep() {
     
     setIsSubmitting(true);
     
-    // Call the Supabase function we built in store.ts!
     const success = await placeOrder(
       { method: paymentMethod || 'Unknown', referenceNo: referenceNo },
       fileObject
@@ -39,8 +40,22 @@ export default function ReviewStep() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFileObject(e.target.files[0]);
-      setFileName(e.target.files[0].name);
+      const file = e.target.files[0];
+      setFileObject(file);
+      setFileName(file.name);
+      
+      // --- THE MOCK AI SCANNER ---
+      setIsScanning(true);
+      setAiDidFill(false);
+      
+      // Simulate a 1.5 second "AI Analysis" delay
+      setTimeout(() => {
+        // Generate a fake 13 digit reference number that looks real
+        const fakeRef = Array.from({length: 13}, () => Math.floor(Math.random() * 10)).join('');
+        setReferenceNo(fakeRef);
+        setIsScanning(false);
+        setAiDidFill(true);
+      }, 1500);
     }
   };
 
@@ -83,7 +98,6 @@ export default function ReviewStep() {
             <p className="font-medium text-[#2C2C2A]">{shippingDetails.fullName || 'Missing Name'}</p>
             <p className="mb-2">{shippingDetails.phone || 'Missing Phone'}</p>
             
-            {/* Show dynamic fulfillment detail based on choice */}
             {shippingMethod === 'pickup' ? (
               <div className="mt-3 bg-white p-3 rounded-xl border border-emerald-100 flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5" />
@@ -111,7 +125,6 @@ export default function ReviewStep() {
             <p className="font-medium text-[#2C2C2A]">{getPaymentName()}</p>
           </div>
 
-          {/* Dynamic Payment Instruction */}
           {(paymentMethod === 'gcash' || paymentMethod === 'maya') && (
             <div className="bg-white p-4 rounded-[14px] border border-[#f0e8e0] shadow-sm">
               <div className="flex items-start gap-2 mb-3">
@@ -127,29 +140,65 @@ export default function ReviewStep() {
             </div>
           )}
 
-          {/* Reference Number Input */}
+          {/* Reference Number Input & Image Upload */}
           <div className="bg-white p-5 rounded-[16px] border border-[#f0e8e0] shadow-sm mt-5">
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Reference Number</label>
-            <input 
-              required 
-              type="text" 
-              placeholder="e.g., 8091 2345 6789 123" 
-              value={referenceNo} 
-              onChange={(e) => setReferenceNo(e.target.value)} 
-              className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-3 px-4 text-sm font-mono tracking-wider transition-all mb-4" 
-            />
+            <div className="flex justify-between items-end mb-2">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Reference Number</label>
+              {/* Show badge if AI filled it! */}
+              {aiDidFill && (
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 animate-in fade-in">
+                  <Sparkles className="w-3 h-3" /> AI Extracted
+                </span>
+              )}
+            </div>
+            
+            <div className="relative mb-6">
+              <input 
+                required 
+                type="text" 
+                placeholder="e.g., 8091 2345 6789 123" 
+                value={referenceNo} 
+                onChange={(e) => { setReferenceNo(e.target.value); setAiDidFill(false); }} 
+                disabled={isScanning}
+                className={`w-full bg-[#fdf8f5] border outline-none rounded-xl py-3 px-4 text-sm font-mono tracking-wider transition-all ${
+                  aiDidFill ? 'border-emerald-300 bg-emerald-50 text-emerald-900 focus:border-emerald-400' : 'border-[#f0e8e0] focus:bg-white focus:border-[#D4537E]'
+                } ${isScanning ? 'opacity-50' : ''}`} 
+              />
+              {isScanning && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-[#D4537E] animate-spin" />
+                </div>
+              )}
+            </div>
 
             <h3 className="font-medium text-[#2C2C2A] flex items-center gap-2 mb-2">
               <UploadCloud className="w-4 h-4 text-gray-400" /> Upload payment proof
             </h3>
-            <p className="text-xs text-gray-500 mb-4">Please upload a screenshot of your successful 50% downpayment transaction to proceed.</p>
+            <p className="text-xs text-gray-500 mb-4">Upload a screenshot of your receipt. Our system will auto-extract the reference number!</p>
 
-            <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${fileName ? 'border-[#71A051] bg-[#EAF3DE]/30' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
-              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
-                {fileName ? (
+            <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl transition-colors relative overflow-hidden ${
+              isScanning ? 'border-[#D4537E] bg-[#FBEAF0]/30 cursor-wait' :
+              fileName ? 'border-[#71A051] bg-[#EAF3DE]/30 cursor-pointer' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'
+            }`}>
+              
+              {/* Cool scanning laser overlay animation */}
+              {isScanning && (
+                <div className="absolute inset-0 w-full h-full pointer-events-none">
+                  <div className="w-full h-1 bg-[#D4537E] absolute top-0 animate-[scan_1.5s_ease-in-out_infinite]" style={{ boxShadow: '0 0 8px 2px rgba(212, 83, 126, 0.5)' }}></div>
+                </div>
+              )}
+
+              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 relative z-10">
+                {isScanning ? (
+                  <>
+                    <ScanLine className="w-8 h-8 text-[#D4537E] mb-2 animate-pulse" />
+                    <p className="text-sm font-bold text-[#D4537E]">AI is reading receipt...</p>
+                  </>
+                ) : fileName ? (
                   <>
                     <CheckCircle2 className="w-8 h-8 text-[#71A051] mb-2" />
                     <p className="text-sm font-medium text-[#71A051] truncate w-full max-w-[200px]">{fileName}</p>
+                    <p className="text-[10px] text-gray-500 mt-1 hover:underline">Click to change</p>
                   </>
                 ) : (
                   <>
@@ -159,8 +208,19 @@ export default function ReviewStep() {
                   </>
                 )}
               </div>
-              <input type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleFileUpload} />
+              <input type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleFileUpload} disabled={isScanning} />
             </label>
+            
+            {/* Inject a tiny bit of CSS specifically for the scanning line animation */}
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes scan {
+                0% { top: 0%; opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { top: 100%; opacity: 0; }
+              }
+            `}} />
+            
           </div>
 
         </div>
@@ -170,16 +230,16 @@ export default function ReviewStep() {
         <button 
           type="button" 
           onClick={() => router.push('/checkout/payment')}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isScanning}
           className="w-1/3 bg-white border border-[#f0e8e0] text-gray-700 py-4 rounded-full text-base font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           Back
         </button>
         <button 
           onClick={handlePlaceOrder}
-          disabled={!fileName || !referenceNo || isSubmitting} 
+          disabled={!fileName || !referenceNo || isSubmitting || isScanning} 
           className={`w-2/3 py-4 rounded-full text-base font-medium shadow-sm transition-all duration-300 flex justify-center items-center gap-2 ${
-            (fileName && referenceNo && !isSubmitting)
+            (fileName && referenceNo && !isSubmitting && !isScanning)
               ? 'bg-[#2C2C2A] text-white hover:bg-black cursor-pointer' 
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
@@ -187,7 +247,7 @@ export default function ReviewStep() {
           {isSubmitting ? (
             <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
           ) : (
-            fileName && referenceNo ? 'Place Order' : 'Complete form to order'
+            fileName && referenceNo ? 'Place Order' : 'Upload receipt to order'
           )}
         </button>
       </div>
