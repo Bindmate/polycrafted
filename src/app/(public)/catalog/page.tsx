@@ -308,7 +308,7 @@ export default function CatalogPage() {
                 <span className="bg-white/80 backdrop-blur-sm border border-white text-[#D4537E] px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">10% Off Orders</span>
                 <span className="bg-white/80 backdrop-blur-sm border border-white text-gray-700 px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">Save Wishlists</span>
                 <span className="bg-white/80 backdrop-blur-sm border border-white text-gray-700 px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">Early Drops</span>
-                <span className="bg-white/80 backdrop-blur-sm border border-white text-gray-700 px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">Order Tracking</span>
+                <span className="bg-white/80 backdrop-blur-sm border border-white text-gray-700 px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">Personalized Promo</span>
               </div>
               
               {/* Action Buttons */}

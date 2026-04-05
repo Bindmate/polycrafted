@@ -31,33 +31,54 @@ export type Product = {
   reviews: number;
   color: string;
   isBundleEligible: boolean;
-  frontImage: string;          // UPGRADED
-  backImage: string | null;    // NEW
+  frontImage: string;
+  backImage: string | null;
   description: string;
+};
+
+export type PickupSchedule = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  isActive: boolean; // Added so admin knows if it's currently bookable
 };
 
 type CheckoutState = {
   items: CheckoutItem[];
   shippingDetails: { fullName: string; phone: string; address: string; };
   paymentMethod: string | null;
-  shippingMethod: 'jnt' | 'lalamove';
+  shippingMethod: 'jnt' | 'lalamove' | 'pickup'; 
   user: User | null;
   wishlist: string[];
   
   products: Product[];
   isLoadingProducts: boolean;
   
+  schedules: PickupSchedule[]; // Storefront active schedules
+  adminSchedules: PickupSchedule[]; // ALL schedules (for ERP)
+  selectedPickup: PickupSchedule | null;
+  
   fetchProducts: () => Promise<void>;
-  // UPGRADED: Now accepts a front file, and an optional back file
+  fetchSchedules: () => Promise<void>; 
+  fetchAllSchedules: () => Promise<void>; // NEW: For Admin ERP
+  
   addProductToDB: (productData: any, frontFile: File, backFile: File | null) => Promise<boolean>;
   updateProductStockInDB: (id: string, newStock: number) => Promise<boolean>;
+  
+  // NEW: Schedule Admin Functions
+  addScheduleToDB: (date: string, startTime: string, endTime: string, location: string) => Promise<boolean>;
+  toggleScheduleStatusDB: (id: string, currentStatus: boolean) => Promise<boolean>;
 
   addItem: (item: CheckoutItem) => void;
-  updateQuantity: (id: string, quantity: number) => void; // NEW
-  removeItem: (id: string) => void; // NEW
+  updateQuantity: (id: string, quantity: number) => void;
+  removeItem: (id: string) => void;
   updateShipping: (details: any) => void;
   setPaymentMethod: (method: string) => void;
-  setShippingMethod: (method: 'jnt' | 'lalamove') => void;
+  setShippingMethod: (method: 'jnt' | 'lalamove' | 'pickup') => void;
+  setPickupSchedule: (schedule: PickupSchedule | null) => void;
+  
   getTotal: () => number;
   clearCart: () => void;
   login: (user: User) => void;
@@ -74,9 +95,12 @@ export const useCheckoutStore = create<CheckoutState>()(
       shippingMethod: 'jnt', 
       user: null,
       wishlist: [],
-      
       products: [],
       isLoadingProducts: false,
+      
+      schedules: [],
+      adminSchedules: [],
+      selectedPickup: null,
 
       fetchProducts: async () => {
         set({ isLoadingProducts: true });
@@ -102,17 +126,66 @@ export const useCheckoutStore = create<CheckoutState>()(
             reviews: 0, 
             color: item.color || "from-gray-200 to-gray-400",
             isBundleEligible: false,
-            frontImage: item.front_image, // Mapped to new DB column
-            backImage: item.back_image,   // Mapped to new DB column
+            frontImage: item.front_image,
+            backImage: item.back_image,
             description: item.description || ""
           }));
           set({ products: formattedProducts, isLoadingProducts: false });
         }
       },
 
+      fetchSchedules: async () => {
+        const { data, error } = await supabase
+          .from('pickup_schedules')
+          .select('*')
+          .eq('is_active', true)
+          .order('pickup_date', { ascending: true });
+          
+        if (error) {
+          console.error("Error fetching schedules:", error);
+          return;
+        }
+
+        if (data) {
+          const formattedSchedules: PickupSchedule[] = data.map(item => ({
+            id: item.id,
+            date: item.pickup_date,
+            startTime: item.start_time,
+            endTime: item.end_time,
+            location: item.location,
+            isActive: item.is_active
+          }));
+          set({ schedules: formattedSchedules });
+        }
+      },
+
+      fetchAllSchedules: async () => {
+        const { data, error } = await supabase
+          .from('pickup_schedules')
+          .select('*')
+          .order('pickup_date', { ascending: true })
+          .order('start_time', { ascending: true });
+          
+        if (error) {
+          console.error("Error fetching all schedules:", error);
+          return;
+        }
+
+        if (data) {
+          const formattedSchedules: PickupSchedule[] = data.map(item => ({
+            id: item.id,
+            date: item.pickup_date,
+            startTime: item.start_time,
+            endTime: item.end_time,
+            location: item.location,
+            isActive: item.is_active
+          }));
+          set({ adminSchedules: formattedSchedules });
+        }
+      },
+
       addProductToDB: async (productData, frontFile, backFile) => {
         try {
-          // 1. Upload Front Image
           const frontExt = frontFile.name.split('.').pop();
           const frontFileName = `front-${Date.now()}-${Math.random().toString(36).substring(2)}.${frontExt}`;
           const { error: frontErr } = await supabase.storage.from('designs').upload(frontFileName, frontFile);
@@ -120,7 +193,6 @@ export const useCheckoutStore = create<CheckoutState>()(
           
           const frontUrl = supabase.storage.from('designs').getPublicUrl(frontFileName).data.publicUrl;
 
-          // 2. Upload Back Image (Only if it exists!)
           let backUrl = null;
           if (backFile) {
             const backExt = backFile.name.split('.').pop();
@@ -131,7 +203,6 @@ export const useCheckoutStore = create<CheckoutState>()(
             backUrl = supabase.storage.from('designs').getPublicUrl(backFileName).data.publicUrl;
           }
 
-          // 3. Insert into Database
           const { error: dbError } = await supabase.from('products').insert([{
             name: productData.name,
             price: productData.price,
@@ -141,7 +212,7 @@ export const useCheckoutStore = create<CheckoutState>()(
             description: productData.description,
             front_image: frontUrl,
             back_image: backUrl,
-            badge: backUrl ? "Back-to-Back" : "New Drop", // Cool dynamic badge!
+            badge: backUrl ? "Back-to-Back" : "New Drop",
             color: "from-rose-200 to-amber-200"
           }]);
 
@@ -168,6 +239,37 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
       },
 
+      addScheduleToDB: async (date, startTime, endTime, location) => {
+        try {
+          const { error } = await supabase.from('pickup_schedules').insert([{
+            pickup_date: date,
+            start_time: startTime,
+            end_time: endTime,
+            location: location,
+            is_active: true
+          }]);
+
+          if (error) throw error;
+          await get().fetchAllSchedules();
+          return true;
+        } catch (error) {
+          console.error("Failed to add schedule:", error);
+          return false;
+        }
+      },
+
+      toggleScheduleStatusDB: async (id, currentStatus) => {
+        try {
+          const { error } = await supabase.from('pickup_schedules').update({ is_active: !currentStatus }).eq('id', id);
+          if (error) throw error;
+          await get().fetchAllSchedules();
+          return true;
+        } catch (error) {
+          console.error("Failed to toggle status:", error);
+          return false;
+        }
+      },
+
       addItem: (item) => set((state) => {
         const existingItem = state.items.find((i) => i.id === item.id);
         if (existingItem) {
@@ -176,7 +278,6 @@ export const useCheckoutStore = create<CheckoutState>()(
         return { items: [...state.items, item] };
       }),
       
-      // NEW ACTIONS: Inline Cart Controls
       updateQuantity: (id, quantity) => set((state) => ({
         items: state.items.map(item => item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item)
       })),
@@ -187,20 +288,21 @@ export const useCheckoutStore = create<CheckoutState>()(
 
       updateShipping: (details) => set((state) => ({ shippingDetails: { ...state.shippingDetails, ...details } })),
       setPaymentMethod: (method) => set({ paymentMethod: method }),
-      setShippingMethod: (method) => set({ shippingMethod: method }),
+      
+      setShippingMethod: (method) => set((state) => ({ 
+        shippingMethod: method,
+        selectedPickup: method !== 'pickup' ? null : state.selectedPickup 
+      })),
+      
+      setPickupSchedule: (schedule) => set({ selectedPickup: schedule }),
+
       getTotal: () => {
-        // Calculate the total number of stickers in the bag
         const totalQty = get().items.reduce((total, item) => total + item.quantity, 0);
-        
-        // THE VOLUME PRICING ENGINE
-        // 1 sticker = ₱30. 2+ stickers = ₱24 each (₱48 pair, +₱24 succeeding)
         const subtotal = totalQty >= 2 ? (totalQty * 24) : (totalQty * 30);
         
-        // Apply the 10% VIP member discount on top if they are logged in!
         if (get().user?.isMember) {
           return subtotal * 0.90; 
         }
-        
         return subtotal;
       },
       clearCart: () => set({ items: [] }),
@@ -212,7 +314,14 @@ export const useCheckoutStore = create<CheckoutState>()(
     }),
     { 
       name: 'polycrafted-storage',
-      partialize: (state) => ({ items: state.items, user: state.user, wishlist: state.wishlist, shippingDetails: state.shippingDetails }),
+      partialize: (state) => ({ 
+        items: state.items, 
+        user: state.user, 
+        wishlist: state.wishlist, 
+        shippingDetails: state.shippingDetails,
+        shippingMethod: state.shippingMethod,
+        selectedPickup: state.selectedPickup
+      }),
     }
   )
 );
