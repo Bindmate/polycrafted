@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store, Sparkles, ScanLine } from "lucide-react";
+import Tesseract from 'tesseract.js'; // NEW: Import the real AI OCR
 
 export default function ReviewStep() {
   const router = useRouter();
@@ -14,8 +15,8 @@ export default function ReviewStep() {
   const [referenceNo, setReferenceNo] = useState("");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isScanning, setIsScanning] = useState(false); // NEW: AI Scanning State
-  const [aiDidFill, setAiDidFill] = useState(false); // NEW: Track if AI filled it
+  const [isScanning, setIsScanning] = useState(false); 
+  const [aiDidFill, setAiDidFill] = useState(false); 
 
   const handlePlaceOrder = async () => {
     if (!fileName || !fileObject || !referenceNo) {
@@ -38,24 +39,43 @@ export default function ReviewStep() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       setFileObject(file);
       setFileName(file.name);
       
-      // --- THE MOCK AI SCANNER ---
+      // --- THE REAL AI SCANNER ---
       setIsScanning(true);
       setAiDidFill(false);
+      setReferenceNo(""); // Clear old number while scanning
       
-      // Simulate a 1.5 second "AI Analysis" delay
-      setTimeout(() => {
-        // Generate a fake 13 digit reference number that looks real
-        const fakeRef = Array.from({length: 13}, () => Math.floor(Math.random() * 10)).join('');
-        setReferenceNo(fakeRef);
+      try {
+        // 1. Tell Tesseract to read the English numbers on the image
+        const result = await Tesseract.recognize(file, 'eng');
+        const rawText = result.data.text;
+
+        // 2. Clean the text (GCash often puts spaces between the reference numbers)
+        const cleanedText = rawText.replace(/\s+/g, '');
+
+        // 3. Use Regex to hunt for exactly 12 or 13 consecutive numbers
+        // GCash is usually 13 digits, Maya is sometimes 12.
+        const match = cleanedText.match(/\d{12,13}/);
+
+        if (match) {
+          setReferenceNo(match[0]); // Boom! Found it.
+          setAiDidFill(true);
+        } else {
+          // If the image is blurry and it can't find a 13 digit number
+          alert("Our AI couldn't clearly read the Reference Number from that image. Please type it in manually.");
+        }
+
+      } catch (error) {
+        console.error("OCR Error:", error);
+        alert("Scanner encountered an error. Please enter the Reference Number manually.");
+      } finally {
         setIsScanning(false);
-        setAiDidFill(true);
-      }, 1500);
+      }
     }
   };
 
@@ -144,7 +164,6 @@ export default function ReviewStep() {
           <div className="bg-white p-5 rounded-[16px] border border-[#f0e8e0] shadow-sm mt-5">
             <div className="flex justify-between items-end mb-2">
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Reference Number</label>
-              {/* Show badge if AI filled it! */}
               {aiDidFill && (
                 <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 animate-in fade-in">
                   <Sparkles className="w-3 h-3" /> AI Extracted
@@ -181,7 +200,7 @@ export default function ReviewStep() {
               fileName ? 'border-[#71A051] bg-[#EAF3DE]/30 cursor-pointer' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'
             }`}>
               
-              {/* Cool scanning laser overlay animation */}
+              {/* Scanning laser overlay animation */}
               {isScanning && (
                 <div className="absolute inset-0 w-full h-full pointer-events-none">
                   <div className="w-full h-1 bg-[#D4537E] absolute top-0 animate-[scan_1.5s_ease-in-out_infinite]" style={{ boxShadow: '0 0 8px 2px rgba(212, 83, 126, 0.5)' }}></div>
@@ -193,6 +212,7 @@ export default function ReviewStep() {
                   <>
                     <ScanLine className="w-8 h-8 text-[#D4537E] mb-2 animate-pulse" />
                     <p className="text-sm font-bold text-[#D4537E]">AI is reading receipt...</p>
+                    <p className="text-[10px] text-[#D4537E]/70 mt-1">This may take a few seconds</p>
                   </>
                 ) : fileName ? (
                   <>
@@ -211,7 +231,6 @@ export default function ReviewStep() {
               <input type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleFileUpload} disabled={isScanning} />
             </label>
             
-            {/* Inject a tiny bit of CSS specifically for the scanning line animation */}
             <style dangerouslySetInnerHTML={{__html: `
               @keyframes scan {
                 0% { top: 0%; opacity: 0; }
