@@ -91,13 +91,13 @@ type CheckoutState = {
   selectedPickup: PickupSchedule | null;
   
   adminOrders: Order[]; 
-  myOrders: Order[]; // NEW: Holds the specific user's orders
+  myOrders: Order[]; 
   
   fetchProducts: () => Promise<void>;
   fetchSchedules: () => Promise<void>; 
   fetchAllSchedules: () => Promise<void>;
   fetchAdminOrders: () => Promise<void>; 
-  fetchMyOrders: () => Promise<void>; // NEW
+  fetchMyOrders: () => Promise<void>; 
   
   addProductToDB: (productData: any, frontFile: File, backFile: File | null) => Promise<boolean>;
   updateProductStockInDB: (id: string, newStock: number) => Promise<boolean>;
@@ -137,7 +137,7 @@ export const useCheckoutStore = create<CheckoutState>()(
       adminSchedules: [],
       selectedPickup: null,
       adminOrders: [],
-      myOrders: [], // Initialize empty array
+      myOrders: [], 
 
       fetchProducts: async () => {
         set({ isLoadingProducts: true });
@@ -187,15 +187,24 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
       },
 
-      // NEW: Fetch ONLY the user's orders
+      // FIXED: Tighter checks to prevent fetching another user's orders
       fetchMyOrders: async () => {
         const state = get();
-        // Match by their logged in name, or their shipping name if guest
         const namesToMatch = [];
-        if (state.user?.name) namesToMatch.push(state.user.name);
-        if (state.shippingDetails.fullName) namesToMatch.push(state.shippingDetails.fullName);
         
-        if (namesToMatch.length === 0) return;
+        // If logged in, ONLY fetch orders belonging to this account name
+        if (state.user?.name) {
+          namesToMatch.push(state.user.name);
+        } 
+        // If guest, fall back to whatever name they typed in shipping
+        else if (state.shippingDetails.fullName) {
+          namesToMatch.push(state.shippingDetails.fullName);
+        }
+        
+        if (namesToMatch.length === 0) {
+          set({ myOrders: [] });
+          return;
+        }
 
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
@@ -246,7 +255,7 @@ export const useCheckoutStore = create<CheckoutState>()(
 
           const { data: orderData, error: orderError } = await supabase.from('orders').insert([{
             display_id: displayId,
-            customer_name: state.shippingDetails.fullName || state.user?.name || 'Unknown',
+            customer_name: state.user?.name || state.shippingDetails.fullName || 'Unknown', // Prioritize account name!
             customer_phone: state.shippingDetails.phone || 'Unknown',
             customer_school: demoString,
             shipping_method: state.shippingMethod,
@@ -276,7 +285,7 @@ export const useCheckoutStore = create<CheckoutState>()(
           if (itemsError) throw itemsError;
 
           state.clearCart();
-          await get().fetchMyOrders(); // Automatically update their order history!
+          await get().fetchMyOrders(); 
           return true;
 
         } catch (error) {
@@ -343,11 +352,20 @@ export const useCheckoutStore = create<CheckoutState>()(
         return subtotal;
       },
       
-      // UPDATED: We do NOT clear the shipping details here anymore so fetchMyOrders can still find them!
       clearCart: () => set({ items: [], selectedPickup: null }),
       
       login: (user) => set({ user }),
-      logout: () => set({ user: null }),
+      
+      // FIXED: When logging out, completely wipe the session data so the next account starts fresh!
+      logout: () => set({ 
+        user: null, 
+        wishlist: [], 
+        myOrders: [], 
+        items: [],
+        shippingDetails: { fullName: '', phone: '', address: '' },
+        selectedPickup: null
+      }),
+      
       toggleWishlist: (id) => set((state) => ({ wishlist: state.wishlist.includes(id) ? state.wishlist.filter(wId => wId !== id) : [...state.wishlist, id] })),
     }),
     { 
