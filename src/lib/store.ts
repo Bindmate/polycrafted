@@ -177,8 +177,18 @@ export const useCheckoutStore = create<CheckoutState>()(
       setPaymentMethod: (method) => set({ paymentMethod: method }),
       setShippingMethod: (method) => set({ shippingMethod: method }),
       getTotal: () => {
-        const subtotal = get().items.reduce((total, item) => total + (item.price * item.quantity), 0);
-        if (get().user?.isMember) return subtotal * 0.90; 
+        // Calculate the total number of stickers in the bag
+        const totalQty = get().items.reduce((total, item) => total + item.quantity, 0);
+        
+        // THE VOLUME PRICING ENGINE
+        // 1 sticker = ₱30. 2+ stickers = ₱24 each (₱48 pair, +₱24 succeeding)
+        const subtotal = totalQty >= 2 ? (totalQty * 24) : (totalQty * 30);
+        
+        // Apply the 10% VIP member discount on top if they are logged in!
+        if (get().user?.isMember) {
+          return subtotal * 0.90; 
+        }
+        
         return subtotal;
       },
       clearCart: () => set({ items: [] }),

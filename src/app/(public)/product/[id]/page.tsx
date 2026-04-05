@@ -4,7 +4,7 @@ import Link from "next/link";
 import { 
   ShoppingBag, Heart, ChevronRight, Star, Plus, Minus, 
   CheckCircle2, Copy, MessageCircle, Camera, Smartphone, 
-  Droplets, ShieldCheck, HelpCircle, LayoutGrid
+  Droplets, ShieldCheck, HelpCircle, LayoutGrid, X, Layers
 } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
@@ -35,9 +35,10 @@ const style = `
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   // PULL GLOBAL STATE FROM STORE
-  const { addItem, products, wishlist, toggleWishlist } = useCheckoutStore();
+  const { addItem, items, getTotal, products, wishlist, toggleWishlist } = useCheckoutStore();
   
   const [quantity, setQuantity] = useState(1);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // FIND THE PRODUCT BASED ON THE URL ID FROM THE STORE ARRAY
   const product = products.find((p) => p.id === resolvedParams.id);
@@ -56,18 +57,101 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   const savings = product.originalPrice - product.price;
   const isSaved = wishlist.includes(product.id);
+  const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
 
   const handleAddToCart = () => {
     addItem({ id: product.id, name: product.name, price: product.price, quantity: quantity });
-    alert(`Added ${quantity}x ${product.name} to bag!`);
+    setIsCartOpen(true);
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24">
+    <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24 relative">
       <style>{style}</style>
 
+      {/* --- UPGRADED SLIDE-OUT CART DRAWER --- */}
+      {isCartOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+      )}
+      
+      <div className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? "translate-x-0" : "translate-x-full"}`}>
+        <div className="flex items-center justify-between p-6 border-b border-[#f0e8e0]">
+          <h2 className="text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
+            My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} items)</span>
+          </h2>
+          <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* THE NEW VOLUME PRICING PROGRESS BAR */}
+          <div className="bg-[#FBEAF0]/50 p-6 border-b border-[#f0e8e0]">
+            {cartItemCount === 0 ? (
+               <div>
+                 <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
+                 <p className="text-xs text-gray-600">Buy any 2 stickers to drop the price to ₱24 each.</p>
+               </div>
+            ) : cartItemCount === 1 ? (
+               <div>
+                 <p className="text-sm font-bold text-[#D4537E] mb-1">You're almost there!</p>
+                 <p className="text-xs text-gray-600 mb-3">Add 1 more sticker to save ₱12 on your order.</p>
+                 <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
+                   <div className="bg-[#D4537E] h-full w-1/2 transition-all duration-500"></div>
+                 </div>
+               </div>
+            ) : (
+               <div>
+                 <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Pair Promo Active!</p>
+                 <p className="text-xs text-gray-600 mb-3">Awesome! All stickers are now only ₱24.00 each.</p>
+                 <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
+                   <div className="bg-[#71A051] h-full w-full transition-all duration-500"></div>
+                 </div>
+               </div>
+            )}
+          </div>
+
+          <div className="p-6">
+            {items.length === 0 ? (
+              <div className="h-40 flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
+                <ShoppingBag className="w-12 h-12 text-gray-300" />
+                <p>Your bag is empty.</p>
+              </div>
+            ) : (
+              <ul className="space-y-6">
+                {items.map((item, index) => (
+                  <li key={`${item.id}-${index}`} className="flex gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2">
+                      {item.name.split(' ')[0]}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-[#2C2C2A] line-clamp-2">{item.name}</h4>
+                      <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
+                      <p className="text-sm font-bold text-[#2C2C2A] mt-1 flex items-center gap-2">
+                        ₱{(activeUnitPrice * item.quantity).toFixed(2)}
+                        {cartItemCount >= 2 && <span className="text-[10px] text-gray-400 line-through font-normal">₱{(30 * item.quantity).toFixed(2)}</span>}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {items.length > 0 && (
+          <div className="p-6 border-t border-[#f0e8e0] bg-[#fdf8f5]">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-base font-medium text-[#2C2C2A]">Subtotal</span>
+              <span className="text-2xl font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
+            </div>
+            <Link href="/checkout/details" className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm">
+              Go to checkout
+            </Link>
+          </div>
+        )}
+      </div>
+
       {/* TOP NAV */}
-      <nav className="sticky top-0 z-50 bg-[#fdf8f5]/90 backdrop-blur-md border-b border-[#f0e8e0]">
+      <nav className="sticky top-0 z-40 bg-[#fdf8f5]/90 backdrop-blur-md border-b border-[#f0e8e0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center text-sm font-medium text-gray-500">
             <Link href="/" className="hover:text-[#D4537E] transition-colors">Home</Link>
@@ -77,15 +161,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <span className="text-[#2C2C2A]">{product.category}</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/account" className="text-gray-600 hover:text-[#D4537E] transition-colors relative">
+            <button 
+              onClick={() => toggleWishlist(product.id)}
+              className="text-gray-600 hover:text-[#D4537E] transition-colors relative"
+            >
               <Heart className="w-5 h-5" />
-              {wishlist.length > 0 && (
-                <span className="absolute top-0 right-0 w-2 h-2 bg-[#D4537E] rounded-full"></span>
-              )}
-            </Link>
-            <Link href="/catalog" className="flex items-center gap-2 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full text-sm font-medium shadow-sm hover:border-gray-300 transition-all">
+              {wishlist.length > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-[#D4537E] rounded-full"></span>}
+            </button>
+            <button onClick={() => setIsCartOpen(true)} className="flex items-center gap-2 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full text-sm font-medium shadow-sm hover:border-gray-300 transition-all">
               <ShoppingBag className="w-4 h-4" />
-            </Link>
+              {cartItemCount > 0 && <span className="bg-[#2C2C2A] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{cartItemCount}</span>}
+            </button>
           </div>
         </div>
       </nav>
@@ -96,15 +182,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           {/* LEFT COLUMN: 3D Image Area */}
           <div className="flex flex-col items-center">
             <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-8">
-              {/* THE CARD */}
               <div className={`sway-card card-depth w-[85%] h-full rounded-[20px] shadow-2xl relative overflow-hidden bg-gradient-to-br ${product.color}`}>
-                
-                {/* ACTUAL IMAGE: Rendered in full color without filters */}
                 <div 
                   className="absolute inset-0 w-full h-full bg-cover bg-center z-0"
                   style={{ backgroundImage: `url('${product.frontImage}')` }}
                 />
-
               </div>
             </div>
 
@@ -125,6 +207,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div className="flex flex-col">
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="bg-[#EEEDFE] text-[#3C3489] text-[11px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full">{product.category}</span>
+              {product.backImage && <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"><Layers className="w-3 h-3"/> Back-to-Back Set</span>}
               <span className="bg-[#EAF3DE] text-[#27500A] text-[11px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full">NFC-safe</span>
             </div>
 
@@ -138,14 +221,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span className="text-sm font-medium text-gray-700 ml-1">4.0</span>
             </div>
 
-            <div className="flex items-end gap-3 mb-2">
-              <span className="text-[26px] font-medium text-[#2C2C2A]">₱{product.price.toFixed(2)}</span>
-              {savings > 0 && (
-                <>
-                  <span className="text-base text-gray-400 line-through mb-1">₱{product.originalPrice.toFixed(2)}</span>
-                  <span className="bg-[#EAF3DE] text-[#27500A] text-xs font-medium px-2.5 py-1 rounded-full mb-1.5">Save ₱{savings.toFixed(0)}</span>
-                </>
-              )}
+            {/* UPGRADED PRICING DISPLAY */}
+            <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-xl p-5 mb-6">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pricing</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-[#2C2C2A]">₱{product.price.toFixed(2)}</span>
+                    <span className="text-sm text-gray-500 font-medium">/ solo piece</span>
+                  </div>
+                </div>
+                <div className="bg-[#EAF3DE] text-[#27500A] px-3 py-2 rounded-lg text-xs font-bold shadow-sm">
+                  Drops to ₱24.00 if you buy 2+
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 mb-8">
@@ -177,31 +266,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </button>
             </div>
 
-            <button className="w-full bg-[#2C2C2A] text-white h-12 rounded-full text-base font-medium shadow-sm hover:bg-black transition-all mb-6">
-              Buy now
-            </button>
-
             <div className="bg-[#FAEEDA]/50 border border-[#FAEEDA] rounded-[14px] p-4 text-center mb-8">
-              <span className="text-[#633806] text-sm font-medium">✨ Buy 2 designs and get free shipping — mix any stickers</span>
+              <span className="text-[#633806] text-sm font-medium">✨ Pair any 2 stickers to unlock the promo price</span>
             </div>
 
             <ul className="space-y-3 mb-8">
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-gray-600 font-medium">Water-resistant & scratch-proof matte finish</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-gray-600 font-medium">Leaves no residue when removed — reposition safely</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-gray-600 font-medium">Standard Beep card dimensions — fits perfectly</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-gray-600 font-medium">NFC signal passes through — tap works normally</span>
-              </li>
+              <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-600 font-medium">Water-resistant & scratch-proof matte finish</span></li>
+              <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-600 font-medium">Leaves no residue when removed</span></li>
+              <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-600 font-medium">Standard Beep card dimensions</span></li>
+              <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-600 font-medium">NFC signal passes through normally</span></li>
             </ul>
 
             <div className="pt-6 border-t border-[#f0e8e0]">
@@ -213,6 +286,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <span className="bg-gray-100 text-gray-700 text-[11px] font-medium px-3 py-1.5 rounded-full border border-gray-200">Bank Transfer</span>
               </div>
             </div>
+
           </div>
         </div>
       </main>
@@ -333,52 +407,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </p>
           </div>
 
-        </div>
-      </section>
-
-      <hr className="border-[#f0e8e0] my-16 max-w-7xl mx-auto" />
-
-      {/* SECTION 4: You might also like */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl font-medium text-[#2C2C2A] mb-6">You might also like</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[
-            { name: "Kuromi Iska ID Badge", price: 48, original: 50, color: "from-purple-400 to-fuchsia-300" },
-            { name: "Coquette Cream 1", price: 24, original: 28, color: "from-[#FBEAF0] to-rose-100" },
-            { name: "PUP Pylon Yellow/Red", price: 48, original: 50, color: "from-red-400 to-amber-300" }
-          ].map((item, i) => (
-            <div key={i} className="group cursor-pointer">
-              <div className={`aspect-[1.58/1] w-full bg-gradient-to-br ${item.color} rounded-[18px] border border-[#f0e8e0] mb-3 shadow-sm group-hover:shadow-md transition-shadow`}></div>
-              <p className="font-medium text-[#2C2C2A] text-sm group-hover:text-[#D4537E] transition-colors">{item.name}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm font-medium text-[#2C2C2A]">₱{item.price}</span>
-                <span className="text-xs text-gray-400 line-through">₱{item.original}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <hr className="border-[#f0e8e0] my-16 max-w-7xl mx-auto" />
-
-      {/* SECTION 5: Common Questions */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 mb-8">
-          <HelpCircle className="w-6 h-6 text-[#D4537E]" />
-          <h2 className="text-xl font-medium text-[#2C2C2A]">Common questions</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[
-            { q: "Will the sticker block my Beep card from tapping?", a: "Nope! Our stickers are ultra-thin (0.1mm) and made from materials that allow NFC and RFID signals to pass through easily. It works perfectly on MRT/LRT gates." },
-            { q: "Can I remove it without damaging my card?", a: "Yes, definitely. We use a special adhesive that holds strong but peels off cleanly without leaving sticky residue behind." },
-            { q: "How long does shipping take?", a: "For Metro Manila, usually 1-3 days via standard local couriers (like J&T or Lalamove for rush orders). Provincial areas take 3-7 days." },
-            { q: "Do you have a COD option?", a: "Yes, we support Cash on Delivery! We also accept GCash, Maya, and direct bank transfers for seamless checkout." }
-          ].map((faq, i) => (
-            <div key={i} className="bg-white border border-[#f0e8e0] rounded-[18px] p-6 shadow-sm">
-              <h3 className="font-medium text-[#2C2C2A] mb-2">{faq.q}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{faq.a}</p>
-            </div>
-          ))}
         </div>
       </section>
 

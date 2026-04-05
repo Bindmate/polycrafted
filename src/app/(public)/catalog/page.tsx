@@ -1,27 +1,29 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, TicketPercent } from "lucide-react";
+import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, TicketPercent, CheckCircle2, Layers } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
 const VIBES = ["All drops", "Sanrio", "Coquette", "College editions", "University"];
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
 
 export default function CatalogPage() {
-    
   const { addItem, items, getTotal, user, wishlist, toggleWishlist, products, fetchProducts } = useCheckoutStore();
   
   // FETCH FROM DATABASE ON LOAD!
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
   const [activeVibe, setActiveVibe] = useState("All drops");
-  
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+  
+  // NEW: Determine current active unit price based on cart volume
+  const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
 
   const handleShare = (productName: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -78,34 +80,73 @@ export default function CatalogPage() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {items.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
-              <ShoppingBag className="w-12 h-12 text-gray-300" />
-              <p>Your bag is empty.</p>
-              <button 
-                onClick={() => setIsCartOpen(false)}
-                className="mt-4 text-[#D4537E] font-medium hover:underline"
-              >
-                Continue browsing
-              </button>
-            </div>
-          ) : (
-            <ul className="space-y-6">
-              {items.map((item, index) => (
-                <li key={`${item.id}-${index}`} className="flex gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2">
-                    {item.name.split(' ')[0]}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-[#2C2C2A] line-clamp-2">{item.name}</h4>
-                    <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
-                    <p className="text-sm font-medium text-[#2C2C2A] mt-1">₱{(item.price * item.quantity).toFixed(2)}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="flex-1 overflow-y-auto">
+          
+          {/* THE NEW VOLUME PRICING PROGRESS BAR */}
+          <div className="bg-[#FBEAF0]/50 p-6 border-b border-[#f0e8e0]">
+            {cartItemCount === 0 ? (
+               <div>
+                 <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
+                 <p className="text-xs text-gray-600">Buy any 2 stickers to drop the price to ₱24 each.</p>
+               </div>
+            ) : cartItemCount === 1 ? (
+               <div>
+                 <p className="text-sm font-bold text-[#D4537E] mb-1">You're almost there!</p>
+                 <p className="text-xs text-gray-600 mb-3">Add 1 more sticker to save ₱12 on your order.</p>
+                 <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
+                   <div className="bg-[#D4537E] h-full w-1/2 transition-all duration-500"></div>
+                 </div>
+               </div>
+            ) : (
+               <div>
+                 <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Pair Promo Active!</p>
+                 <p className="text-xs text-gray-600 mb-3">Awesome! All stickers are now only ₱24.00 each.</p>
+                 <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
+                   <div className="bg-[#71A051] h-full w-full transition-all duration-500"></div>
+                 </div>
+               </div>
+            )}
+          </div>
+
+          <div className="p-6">
+            {items.length === 0 ? (
+              <div className="h-40 flex flex-col items-center justify-center text-center space-y-4 text-gray-500">
+                <ShoppingBag className="w-12 h-12 text-gray-300" />
+                <p>Your bag is empty.</p>
+                <button 
+                  onClick={() => setIsCartOpen(false)}
+                  className="mt-4 text-[#D4537E] font-medium hover:underline"
+                >
+                  Continue browsing
+                </button>
+              </div>
+            ) : (
+              <ul className="space-y-6">
+                {items.map((item, index) => (
+                  <li key={`${item.id}-${index}`} className="flex gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2">
+                      {item.name.split(' ')[0]}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-[#2C2C2A] line-clamp-2">{item.name}</h4>
+                      <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
+                      
+                      {/* Dynamic Pricing Display */}
+                      <p className="text-sm font-bold text-[#2C2C2A] mt-1 flex items-center gap-2">
+                        ₱{(activeUnitPrice * item.quantity).toFixed(2)}
+                        {cartItemCount >= 2 && (
+                          <span className="text-[10px] text-gray-400 line-through font-normal">
+                            ₱{(30 * item.quantity).toFixed(2)}
+                          </span>
+                        )}
+                      </p>
+
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {items.length > 0 && (
@@ -282,9 +323,9 @@ export default function CatalogPage() {
                           {product.badge}
                         </span>
                       )}
-                      {product.isBundleEligible && (
-                        <span className="text-[10px] bg-white/80 backdrop-blur-sm text-[#D4537E] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-sm">
-                          Bundle & Save
+                      {product.backImage && (
+                        <span className="text-[10px] bg-indigo-50/90 border border-indigo-100 backdrop-blur-sm text-indigo-700 uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-sm">
+                          Back-to-Back
                         </span>
                       )}
                     </div>
@@ -345,11 +386,10 @@ export default function CatalogPage() {
                     </div>
                   </div>
 
+                  {/* DISPLAY DEFAULT PRICE, AND EXPLAIN THE DROP */}
                   <div className="mt-3.5 flex items-center gap-2">
-                    <p className="text-base font-medium text-[#2C2C2A]">₱{product.price.toFixed(2)}</p>
-                    {product.originalPrice > product.price && (
-                      <p className="text-xs font-normal text-gray-400 line-through">₱{product.originalPrice.toFixed(2)}</p>
-                    )}
+                    <p className="text-base font-bold text-[#2C2C2A]">₱{product.price.toFixed(2)}</p>
+                    <span className="text-[10px] bg-[#EAF3DE] text-[#27500A] px-2 py-0.5 rounded-md font-medium">₱24 if you buy 2+</span>
                   </div>
                 </div>
               </div>
