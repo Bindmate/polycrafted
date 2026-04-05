@@ -2,20 +2,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCheckoutStore } from "@/lib/store";
-import { User, Heart, Sparkles, LogOut, TicketPercent, ArrowRight, Building, GraduationCap, CheckCircle2, ChevronRight, ShoppingBag, Trash2 } from "lucide-react";
+import { User, Heart, Sparkles, LogOut, TicketPercent, ArrowRight, Building, GraduationCap, CheckCircle2, ChevronRight, ShoppingBag, Trash2, Clock, Package, Truck, Box } from "lucide-react";
 
 export default function AccountPage() {
-  // Grab the global store data, including products so we can render the actual wishlist items!
-  const { user, login, logout, wishlist, toggleWishlist, products, fetchProducts, items } = useCheckoutStore();
+  const { user, login, logout, wishlist, toggleWishlist, products, fetchProducts, items, myOrders, fetchMyOrders } = useCheckoutStore();
   
-  // Make sure products are loaded if they go straight to /account
   useEffect(() => {
     if (products.length === 0) fetchProducts();
-  }, [products.length, fetchProducts]);
+    if (user) fetchMyOrders(); // Fetch their specific orders!
+  }, [products.length, fetchProducts, user, fetchMyOrders]);
 
-  const [isLogin, setIsLogin] = useState(false); // Default to Sign Up
-  
-  // Form State
+  const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -28,21 +25,33 @@ export default function AccountPage() {
   const handleMockAuth = (e: React.FormEvent) => {
     e.preventDefault();
     login({ 
-      name: isLogin ? "Iskolar" : firstName || "Iskolar", 
+      name: isLogin ? "Jhon Luke" : firstName || "Iskolar", 
       email: email || "student@email.com", 
       school: isLogin ? "PUP Manila" : school || "PUP Manila",
-      college: isLogin ? "CBA" : college || "CBA",
+      college: isLogin ? "Marketing" : college || "CBA",
       yearLevel: isLogin ? "Sophomore" : yearLevel || "Sophomore",
       isMember: true 
     });
   };
 
-  // --- GUEST STATE (LOGIN / SIGNUP) ---
+  // Helper for Order Badges
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Awaiting Verification":
+        return <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider w-fit"><Clock className="w-3 h-3" /> Verification</span>;
+      case "Preparing to Ship":
+        return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider w-fit"><Package className="w-3 h-3" /> Preparing</span>;
+      case "Shipped":
+        return <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider w-fit"><Truck className="w-3 h-3" /> Ready / Shipped</span>;
+      default:
+        return <span className="bg-gray-50 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider w-fit">{status}</span>;
+    }
+  };
+
+  // --- GUEST STATE ---
   if (!user) {
     return (
       <div className="min-h-screen bg-[#fdf8f5] text-gray-800 font-sans pb-24 relative overflow-x-hidden">
-        
-        {/* STICKY TOP NAVIGATION */}
         <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#f0e8e0]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between gap-4">
             <Link href="/" className="text-xl md:text-2xl font-medium tracking-tight flex-shrink-0">
@@ -55,9 +64,7 @@ export default function AccountPage() {
               <Link href="/catalog" className="flex items-center gap-2 bg-[#2C2C2A] text-white px-3.5 py-2 md:px-5 md:py-3 rounded-full text-sm font-medium hover:bg-black transition-colors">
                 <ShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
                 <span className="hidden xs:inline">My bag</span>
-                {cartItemCount > 0 && (
-                  <span className="bg-white text-[#2C2C2A] text-xs font-semibold px-2 py-0.5 rounded-full ml-0.5 md:ml-1">{cartItemCount}</span>
-                )}
+                {cartItemCount > 0 && <span className="bg-white text-[#2C2C2A] text-xs font-semibold px-2 py-0.5 rounded-full ml-0.5 md:ml-1">{cartItemCount}</span>}
               </Link>
             </div>
           </div>
@@ -66,7 +73,6 @@ export default function AccountPage() {
         <div className="flex items-center justify-center p-4 py-10 md:py-20">
           <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white border border-[#f0e8e0] rounded-[24px] md:rounded-[32px] shadow-xl overflow-hidden">
             
-            {/* Left Side: The Benefits Pitch */}
             <div className="bg-[#FBEAF0] p-8 md:p-10 flex flex-col justify-center order-2 md:order-1 border-t md:border-t-0 md:border-r border-[#f0e8e0]/50">
               <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-[#D4537E] mb-4 md:mb-6" />
               <h2 className="text-2xl md:text-3xl font-medium text-[#2C2C2A] mb-3 md:mb-4 tracking-tight">Join the Community</h2>
@@ -74,31 +80,15 @@ export default function AccountPage() {
                 Create an account to unlock exclusive perks tailored for your college journey.
               </p>
               <ul className="space-y-3 md:space-y-4">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Permanent 10% OFF all orders</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Save items to your Wishlist</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Early access to your college's drops</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Personalized promos and updates</span>
-                </li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" /><span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Permanent 10% OFF all orders</span></li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" /><span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Save items to your Wishlist</span></li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" /><span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Early access to your college's drops</span></li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-[#D4537E] flex-shrink-0 mt-0.5" /><span className="text-xs md:text-sm font-medium text-[#2C2C2A]">Personalized promos and updates</span></li>
               </ul>
             </div>
 
-            {/* Right Side: The Form */}
             <div className="p-8 md:p-10 flex flex-col justify-center order-1 md:order-2">
-              <h1 className="text-xl md:text-2xl font-medium text-[#2C2C2A] mb-6">
-                {isLogin ? 'Welcome back' : 'Create your account'}
-              </h1>
-
+              <h1 className="text-xl md:text-2xl font-medium text-[#2C2C2A] mb-6">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
               <form onSubmit={handleMockAuth} className="space-y-4">
                 {!isLogin && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
@@ -106,7 +96,6 @@ export default function AccountPage() {
                       <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Nickname</label>
                       <input required type="text" placeholder="How should we call you?" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm transition-all" />
                     </div>
-                    
                     <div>
                       <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">School / University</label>
                       <div className="relative">
@@ -114,7 +103,6 @@ export default function AccountPage() {
                         <input required type="text" placeholder="e.g. PUP Manila" value={school} onChange={(e) => setSchool(e.target.value)} className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-2xl py-2.5 md:py-3 pl-10 pr-4 text-xs md:text-sm transition-all" />
                       </div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-3 md:gap-4">
                       <div>
                         <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">College/Dept</label>
@@ -137,22 +125,18 @@ export default function AccountPage() {
                     </div>
                   </div>
                 )}
-
                 <div>
                   <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Email</label>
                   <input required type="email" placeholder="student@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm transition-all" />
                 </div>
-                
                 <div>
                   <label className="block text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Password</label>
                   <input required type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm transition-all" />
                 </div>
-
                 <button type="submit" className="w-full bg-[#D4537E] text-white py-3 md:py-3.5 rounded-full text-sm md:text-base font-bold shadow-md hover:bg-[#b8436b] hover:shadow-lg transition-all transform hover:-translate-y-0.5 mt-2">
                   {isLogin ? 'Log In' : 'Create Account'}
                 </button>
               </form>
-              
               <div className="mt-6 text-center text-xs md:text-sm">
                 <span className="text-gray-500">{isLogin ? "Don't have an account?" : "Already have an account?"}</span>
                 <button onClick={() => { setIsLogin(!isLogin); setPassword(""); }} className="text-[#D4537E] font-bold ml-1.5 hover:underline">
@@ -169,8 +153,6 @@ export default function AccountPage() {
   // --- LOGGED IN STATE ---
   return (
     <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24 relative overflow-x-hidden">
-      
-      {/* STICKY TOP NAVIGATION */}
       <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#f0e8e0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between gap-4">
           <div className="flex items-center text-sm font-medium text-gray-500 overflow-hidden whitespace-nowrap">
@@ -182,9 +164,7 @@ export default function AccountPage() {
             <Link href="/catalog" className="flex items-center gap-2 bg-[#2C2C2A] text-white px-3.5 py-2 md:px-5 md:py-3 rounded-full text-sm font-medium hover:bg-black transition-colors">
               <ShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
               <span className="hidden xs:inline">My bag</span>
-              {cartItemCount > 0 && (
-                <span className="bg-white text-[#2C2C2A] text-xs font-semibold px-2 py-0.5 rounded-full ml-0.5 md:ml-1">{cartItemCount}</span>
-              )}
+              {cartItemCount > 0 && <span className="bg-white text-[#2C2C2A] text-xs font-semibold px-2 py-0.5 rounded-full ml-0.5 md:ml-1">{cartItemCount}</span>}
             </Link>
           </div>
         </div>
@@ -219,9 +199,29 @@ export default function AccountPage() {
               </Link>
             </div>
             
+            {/* LIVE ORDER HISTORY */}
             <div className="bg-white border border-[#f0e8e0] rounded-[20px] p-5 shadow-sm">
-               <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">Order History</h3>
-               <p className="text-xs text-gray-500 italic">You haven't placed any orders yet.</p>
+               <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center justify-between">
+                 <span className="flex items-center gap-2"><Box className="w-4 h-4 text-[#D4537E]"/> Order History</span>
+                 <span className="bg-[#fdf8f5] text-[#D4537E] text-[10px] px-2 py-0.5 rounded-full">{myOrders.length}</span>
+               </h3>
+               
+               {myOrders.length === 0 ? (
+                 <p className="text-xs text-gray-500 italic text-center py-4">You haven't placed any orders yet.</p>
+               ) : (
+                 <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
+                   {myOrders.map(order => (
+                     <div key={order.id} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
+                       <div className="flex justify-between items-start mb-1.5">
+                          <p className="text-xs font-bold text-gray-900 tracking-wider">{order.id}</p>
+                          <p className="text-xs font-black text-[#D4537E]">₱{order.total.toFixed(2)}</p>
+                       </div>
+                       <p className="text-[10px] text-gray-400 mb-2">{order.date} • {order.items.length} items</p>
+                       {getStatusBadge(order.status)}
+                     </div>
+                   ))}
+                 </div>
+               )}
             </div>
           </div>
 
@@ -249,16 +249,13 @@ export default function AccountPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {wishlist.map(id => {
                     const product = products.find(p => p.id === id);
-                    if (!product) return null; // Safety check in case a product was deleted from DB
+                    if (!product) return null;
 
                     return (
                       <div key={id} className="flex gap-3 md:gap-4 p-3 md:p-4 rounded-[16px] border border-[#f0e8e0] hover:border-[#D4537E]/40 hover:shadow-sm transition-all group bg-white relative">
-                        {/* Image Thumbnail */}
                         <Link href={`/product/${id}`} className={`w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden bg-gradient-to-br ${product.color} flex-shrink-0 relative`}>
                           <img src={product.frontImage} alt={product.name} className="w-full h-full object-cover" />
                         </Link>
-                        
-                        {/* Info */}
                         <div className="flex flex-col justify-center flex-1 min-w-0 pr-6">
                            <span className="text-[9px] md:text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">{product.category}</span>
                            <Link href={`/product/${id}`} className="font-bold text-[#2C2C2A] text-xs md:text-sm leading-tight hover:text-[#D4537E] truncate block mb-1">
@@ -266,12 +263,9 @@ export default function AccountPage() {
                            </Link>
                            <p className="text-sm font-black text-[#D4537E]">₱{product.price.toFixed(2)}</p>
                         </div>
-
-                        {/* Remove Action (Absolute positioned top right) */}
                         <button 
                           onClick={(e) => { e.preventDefault(); toggleWishlist(id); }}
                           className="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                          title="Remove from wishlist"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
