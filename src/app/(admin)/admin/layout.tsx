@@ -87,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag, badge: pendingOrdersCount },
     { name: "Inventory", href: "/admin/inventory", icon: Package },
     // FIX: Updated href to match your singular "customer" folder!
-    { name: "Customers", href: "/admin/customer", icon: Users }, 
+    { name: "Customers", href: "/admin/customers", icon: Users }, 
     { name: "Schedule", href: "/admin/schedule", icon: CalendarDays },
   ];
 
