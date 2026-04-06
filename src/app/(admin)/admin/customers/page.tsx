@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useCheckoutStore, Order } from "@/lib/store"; // Added 'Order' type here!
+// Using a direct relative path to fix the "Cannot find module" glitch in VS Code
+import { useCheckoutStore, Order } from "../../../../lib/store"; 
 import { Search, Filter, Users, GraduationCap, Phone, MapPin, Award } from "lucide-react";
 
 export default function CustomersPage() {
@@ -15,7 +16,7 @@ export default function CustomersPage() {
   const getCustomersList = () => {
     const customersMap = new Map();
 
-    // Explicitly typed (order: Order) to fix the TypeScript error!
+    // FIXED: Explicitly typing (order: Order) kills the implicit 'any' error!
     adminOrders.forEach((order: Order) => {
       // Use name as the unique identifier
       const key = order.customer.name.toLowerCase().trim();
