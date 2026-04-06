@@ -73,7 +73,6 @@ export default function InventoryPage() {
 
     setIsUploading(true);
     
-    // Send both files to our upgraded function!
     const success = await addProductToDB(newProduct, frontFile, isBackToBack ? backFile : null);
     
     if (success) {
@@ -146,7 +145,6 @@ export default function InventoryPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {/* Badge showing if it's back-to-back */}
                     {item.backImage ? (
                       <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-md w-fit">
                         <Layers className="w-3.5 h-3.5" /> Back-to-Back
@@ -156,7 +154,17 @@ export default function InventoryPage() {
                     )}
                   </td>
                   <td className="px-6 py-4">{getStatusBadge(item.stock)}</td>
-                  <td className="px-6 py-4 text-center font-bold text-gray-900">{item.stock}</td>
+                  <td className="px-6 py-4 text-center font-bold text-gray-900">
+                     {editingProduct?.id === item.id ? (
+                        <div className="flex items-center justify-center gap-2">
+                           <input type="number" min="0" value={editStockValue} onChange={(e) => setEditStockValue(parseInt(e.target.value) || 0)} className="w-16 border border-gray-300 rounded px-2 py-1 text-center" />
+                           <button onClick={handleSaveEdit} disabled={isUpdating} className="text-emerald-600 font-bold text-xs hover:underline">{isUpdating ? '...' : 'Save'}</button>
+                           <button onClick={() => setEditingProduct(null)} className="text-gray-400 font-bold text-xs hover:underline">Cancel</button>
+                        </div>
+                     ) : (
+                        item.stock
+                     )}
+                  </td>
                   <td className="px-6 py-4 text-right font-medium text-gray-900">₱{item.price.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => { setEditingProduct(item); setEditStockValue(item.stock); }} className="p-2 text-gray-400 hover:text-[#D4537E] hover:bg-[#FBEAF0] rounded-lg transition-colors">
@@ -182,7 +190,6 @@ export default function InventoryPage() {
             
             <form onSubmit={handleAddNewProduct} className="flex-1 overflow-y-auto p-6 space-y-6">
               
-              {/* THE BACK-TO-BACK TOGGLE */}
               <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-xl p-4 flex items-center justify-between cursor-pointer" onClick={() => setIsBackToBack(!isBackToBack)}>
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Layers className="w-4 h-4 text-[#D4537E]" /> Back-to-Back Design?</h3>
@@ -193,10 +200,7 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              {/* IMAGE UPLOADERS */}
               <div className={`grid ${isBackToBack ? 'grid-cols-2' : 'grid-cols-1'} gap-4 transition-all`}>
-                
-                {/* Front Image */}
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Front Design</label>
                   <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors overflow-hidden ${frontPreview ? 'border-[#71A051] bg-black' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
@@ -204,8 +208,6 @@ export default function InventoryPage() {
                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, 'front')} />
                   </label>
                 </div>
-
-                {/* Back Image (Conditional) */}
                 {isBackToBack && (
                   <div className="animate-in fade-in slide-in-from-left-4 duration-300">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Back Design</label>
@@ -230,6 +232,19 @@ export default function InventoryPage() {
                   <option value="Sanrio">Sanrio</option>
                   <option value="Coquette">Coquette</option>
                 </select>
+              </div>
+
+              {/* INJECTED: Product Description Textarea */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</label>
+                <textarea 
+                  required 
+                  value={newProduct.description} 
+                  onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} 
+                  className="w-full bg-gray-50 border border-gray-200 focus:border-[#D4537E] outline-none rounded-xl px-4 py-2.5 text-sm resize-none" 
+                  rows={3}
+                  placeholder="Describe the aesthetic and material..."
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
