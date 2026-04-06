@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // NEW: Imported router for cache busting
 import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, CheckCircle2, Minus, Trash2, Sparkles, TicketPercent, Layers } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
@@ -8,11 +9,15 @@ const VIBES = ["All drops", "Sanrio", "Coquette", "College editions", "Universit
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
 
 export default function CatalogPage() {
+  const router = useRouter();
   const { addItem, items, getTotal, user, wishlist, toggleWishlist, products, fetchProducts, updateQuantity, removeItem } = useCheckoutStore();
   
   useEffect(() => {
+    // Force fetch fresh data from Supabase
     fetchProducts();
-  }, [fetchProducts]);
+    // NEW: Tell Next.js to purge the route cache so ghost data doesn't stick around!
+    router.refresh(); 
+  }, [fetchProducts, router]);
 
   const [activeVibe, setActiveVibe] = useState("All drops");
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
@@ -295,7 +300,7 @@ export default function CatalogPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-10">
         
-        {/* NEW ISKOLAR LIFE LOGIN BANNER */}
+        {/* ISKOLAR LIFE LOGIN BANNER */}
         {!user ? (
           <div className="bg-[#FBEAF0] rounded-[24px] p-6 md:p-10 mb-8 border border-[#f0e8e0] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
             {/* Content */}
