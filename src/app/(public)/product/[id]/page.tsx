@@ -302,7 +302,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
 
             <h1 className="text-xl sm:text-[22px] font-medium text-[#2C2C2A] mb-2 sm:mb-3 leading-snug">{product.name}</h1>
-            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4">{product.description}</p>
+            
+            {/* FIXED: Added whitespace-pre-wrap to properly show the paragraphs entered in the Admin portal */}
+            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 whitespace-pre-wrap">
+              {product.description || "A premium, water-resistant vinyl sticker designed to elevate your daily commute. Leaves no residue and fits perfectly on standard cards."}
+            </p>
 
             <div className="flex items-center gap-1.5 mb-6">
               <div className="flex text-[#D28E3D]">
