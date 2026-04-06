@@ -93,6 +93,8 @@ type CheckoutState = {
   adminOrders: Order[]; 
   myOrders: Order[]; 
   
+  isAdminAuthenticated: boolean;
+  
   fetchProducts: () => Promise<void>;
   fetchSchedules: () => Promise<void>; 
   fetchAllSchedules: () => Promise<void>;
@@ -120,6 +122,9 @@ type CheckoutState = {
   login: (user: User) => void;
   logout: () => void;
   toggleWishlist: (id: string) => void;
+  
+  loginAdmin: (passcode: string) => boolean;
+  logoutAdmin: () => void;
 };
 
 export const useCheckoutStore = create<CheckoutState>()(
@@ -138,6 +143,7 @@ export const useCheckoutStore = create<CheckoutState>()(
       selectedPickup: null,
       adminOrders: [],
       myOrders: [], 
+      isAdminAuthenticated: false,
 
       fetchProducts: async () => {
         set({ isLoadingProducts: true });
@@ -169,7 +175,6 @@ export const useCheckoutStore = create<CheckoutState>()(
 
       fetchAdminOrders: async () => {
         const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
-        
         if (!ordersError && ordersData) {
           const formattedOrders: Order[] = ordersData.map(order => {
             const dateObj = new Date(order.created_at);
@@ -286,7 +291,6 @@ export const useCheckoutStore = create<CheckoutState>()(
           for (const item of state.items) {
              const product = state.products.find(p => p.id === item.id);
              if (product) {
-               // Calculate new stock, ensuring it doesn't drop below 0
                const newStock = Math.max(0, product.stock - item.quantity);
                await get().updateProductStockInDB(product.id, newStock);
              }
@@ -294,7 +298,6 @@ export const useCheckoutStore = create<CheckoutState>()(
 
           state.clearCart();
           await get().fetchMyOrders(); 
-          // Refetch products so the storefront shows the updated stock numbers instantly
           await get().fetchProducts();
           
           return true;
@@ -317,7 +320,49 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
       },
 
-      addProductToDB: async (productData, frontFile, backFile) => { return true;},
+      addProductToDB: async (productData, frontFile, backFile) => {
+        try {
+          const frontExt = frontFile.name.split('.').pop();
+          const frontFileName = `front-${Date.now()}-${Math.random().toString(36).substring(2)}.${frontExt}`;
+          const { error: frontErr } = await supabase.storage.from('designs').upload(frontFileName, frontFile);
+          if (frontErr) throw frontErr;
+          
+          const frontUrl = supabase.storage.from('designs').getPublicUrl(frontFileName).data.publicUrl;
+
+          let backUrl = null;
+          if (backFile) {
+            const backExt = backFile.name.split('.').pop();
+            const backFileName = `back-${Date.now()}-${Math.random().toString(36).substring(2)}.${backExt}`;
+            const { error: backErr } = await supabase.storage.from('designs').upload(backFileName, backFile);
+            if (backErr) throw backErr;
+            
+            backUrl = supabase.storage.from('designs').getPublicUrl(backFileName).data.publicUrl;
+          }
+
+          const { error: dbError } = await supabase.from('products').insert([{
+            name: productData.name,
+            price: productData.price,
+            original_price: productData.originalPrice,
+            category: productData.category,
+            stock: productData.stock,
+            description: productData.description,
+            front_image: frontUrl,
+            back_image: backUrl,
+            badge: backUrl ? "Back-to-Back" : "New Drop",
+            color: "from-rose-200 to-amber-200"
+          }]);
+
+          if (dbError) throw dbError;
+
+          await get().fetchProducts();
+          return true;
+        } catch (error) {
+          console.error("Failed to add product:", error);
+          alert("Failed to add product. Check the console.");
+          return false;
+        }
+      },
+
       updateProductStockInDB: async (id, newStock) => {
         try {
           const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
@@ -377,10 +422,28 @@ export const useCheckoutStore = create<CheckoutState>()(
       login: (user) => set({ user }),
       
       toggleWishlist: (id) => set((state) => ({ wishlist: state.wishlist.includes(id) ? state.wishlist.filter(wId => wId !== id) : [...state.wishlist, id] })),
+
+      // Admin Auth Logic
+      loginAdmin: (passcode) => {
+        if (passcode === 'polycrafted2026') { 
+          set({ isAdminAuthenticated: true });
+          return true;
+        }
+        return false;
+      },
+      logoutAdmin: () => set({ isAdminAuthenticated: false }),
     }),
     { 
       name: 'polycrafted-storage',
-      partialize: (state) => ({ items: state.items, user: state.user, wishlist: state.wishlist, shippingDetails: state.shippingDetails, shippingMethod: state.shippingMethod, selectedPickup: state.selectedPickup }),
+      partialize: (state) => ({ 
+        items: state.items, 
+        user: state.user, 
+        wishlist: state.wishlist, 
+        shippingDetails: state.shippingDetails, 
+        shippingMethod: state.shippingMethod, 
+        selectedPickup: state.selectedPickup,
+        isAdminAuthenticated: state.isAdminAuthenticated 
+      }),
     }
   )
 );
