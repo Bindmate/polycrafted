@@ -1,52 +1,76 @@
-"use client";
-import { useState, use, useEffect } from "react";
-import Link from "next/link";
-import { 
-  ShoppingBag, Heart, ChevronRight, Star, Plus, Minus, 
-  CheckCircle2, Copy, Camera, Smartphone, Droplets, ShieldCheck, 
-  LayoutGrid, X, Layers, TicketPercent, Trash2 
-} from "lucide-react";
-import { useCheckoutStore } from "@/lib/store";
-
-const style = `
-  @keyframes spin-card {
-    0% { transform: rotateY(0deg) rotateX(4deg); }
-    50% { transform: rotateY(180deg) rotateX(-2deg); }
-    100% { transform: rotateY(360deg) rotateX(4deg); }
-  }
-  .perspective-container { perspective: 1200px; }
-  .spin-wrapper { animation: spin-card 12s linear infinite; transform-style: preserve-3d; width: 90%; height: 100%; position: relative; }
-  @media (min-width: 768px) { .spin-wrapper { width: 85%; } }
-  .spin-wrapper:hover { animation-play-state: paused; }
-  .card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 20px; overflow: hidden; }
-  .card-back { transform: rotateY(180deg); }
-  .card-depth::before { content: ''; position: absolute; inset: -1px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%); border-radius: 20px; z-index: -1; transform: translateZ(-1px); }
-`;
-
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const { addItem, items, getTotal, products, wishlist, toggleWishlist, removeItem, updateQuantity } = useCheckoutStore();
+  
+  const { 
+    addItem, 
+    items, 
+    getTotal, 
+    products, 
+    wishlist, 
+    toggleWishlist, 
+    removeItem, 
+    updateQuantity,
+    fetchProducts,      // NEW: Added this
+    isLoadingProducts   // NEW: Added this
+  } = useCheckoutStore();
   
   const [quantity, setQuantity] = useState(1);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [previewBackId, setPreviewBackId] = useState<string | null>(null);
 
+  // NEW: Fetch products if someone opens this page directly via a shared link!
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [products.length, fetchProducts]);
+
   const product = products.find((p) => p.id === resolvedParams.id);
+  
   const [variant, setVariant] = useState(product?.backImage ? 'pair' : 'solo');
 
+  // Auto-select a back preview if they have items in their bag
   useEffect(() => {
     if (product && !product.backImage) {
-      const bagProducts = items.map(cartItem => products.find(p => p.id === cartItem.id.replace('-front','').replace('-back',''))).filter(Boolean);
+      const bagProducts = items
+        .map(cartItem => products.find(p => p.id === cartItem.id.replace('-front','').replace('-back','')))
+        .filter(Boolean);
+        
       const possibleBack = bagProducts.find(p => p?.id !== product.id);
-      if (possibleBack && !previewBackId) setPreviewBackId(possibleBack.id);
+      
+      if (possibleBack && !previewBackId) {
+        setPreviewBackId(possibleBack.id);
+      }
     }
   }, [items, product, products, previewBackId]);
 
-  if (!product) return <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">Design not found.</div>;
+  // NEW: Show a loading screen while Supabase fetches the data
+  if (isLoadingProducts || (products.length === 0)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">
+        <div className="text-center flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-[#D4537E]/20 border-t-[#D4537E] rounded-full animate-spin mb-4" />
+          <h1 className="text-lg font-bold text-[#2C2C2A] animate-pulse">Loading design...</h1>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[#2C2C2A] mb-4">Design not found</h1>
+          <Link href="/catalog" className="text-[#D4537E] font-medium hover:underline">Return to catalog</Link>
+        </div>
+      </div>
+    );
+  }
 
   const isSaved = wishlist.includes(product.id);
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
   
+  // Cart Savings Math
   const baseTotal = cartItemCount * 30;
   const bundleTotal = cartItemCount === 0 ? 0 : cartItemCount === 1 ? 30 : 43 + ((cartItemCount - 2) * 24);
   const totalSavings = baseTotal - bundleTotal;
@@ -55,7 +79,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const displayBackImage = product.backImage || previewProduct?.frontImage || null;
 
   const bagProducts = Array.from(new Set(items.map(item => item.id.replace('-front','').replace('-back',''))))
-    .map(id => products.find(p => p.id === id)).filter(Boolean) as any[];
+    .map(id => products.find(p => p.id === id))
+    .filter(Boolean) as any[];
 
   const handleAddToCart = () => {
     if (variant === 'pair') {
@@ -80,14 +105,19 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24 relative overflow-x-hidden">
       <style>{style}</style>
 
-      {isCartOpen && <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />}
+      {/* --- SLIDE-OUT CART DRAWER --- */}
+      {isCartOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+      )}
       
       <div className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-center justify-between p-6 border-b border-[#f0e8e0]">
           <h2 className="text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
             My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} pieces)</span>
           </h2>
-          <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -127,10 +157,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 {items.map((item, index) => {
                   const baseId = item.id.replace('-front', '').replace('-back', '');
                   const cartProduct = products.find(p => p.id === baseId);
+                  
                   return (
                     <li key={`${item.id}-${index}`} className="flex gap-4">
                       <div className={`w-16 h-16 rounded-xl border border-gray-100 flex-shrink-0 overflow-hidden relative bg-gradient-to-br ${cartProduct?.color || 'from-gray-100 to-gray-200'}`}>
-                         {cartProduct?.frontImage && <img src={item.id.includes('-back') && cartProduct.backImage ? cartProduct.backImage : cartProduct.frontImage} className="w-full h-full object-cover" alt={item.name} />}
+                         {cartProduct?.frontImage && (
+                           <img 
+                             src={item.id.includes('-back') && cartProduct.backImage ? cartProduct.backImage : cartProduct.frontImage} 
+                             className="w-full h-full object-cover" 
+                             alt={item.name}
+                           />
+                         )}
                       </div>
                       <div className="flex-1 flex flex-col justify-between">
                         <div className="flex justify-between items-start">
@@ -139,9 +176,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         </div>
                         <div className="flex items-end justify-between mt-2">
                           <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-7 px-1">
-                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center text-gray-500"><Minus className="w-3 h-3" /></button>
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3" /></button>
                             <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500"><Plus className="w-3 h-3" /></button>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-3 h-3" /></button>
                           </div>
                           <p className="text-sm font-bold text-gray-500">₱{(30 * item.quantity).toFixed(2)}</p>
                         </div>
@@ -261,7 +298,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span className="text-xs sm:text-sm font-medium text-gray-700 ml-1">4.0</span>
             </div>
 
-            {/* DYNAMIC VARIANT SELECTOR */}
             {product.backImage ? (
               <div className="mb-6">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Select Format</p>
@@ -336,7 +372,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </span>
             </div>
 
-            {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8">
               <div className="flex items-center bg-white border border-[#f0e8e0] rounded-full h-12 sm:h-14 px-1 sm:px-2 shadow-sm">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3 sm:w-4 sm:h-4" /></button>
