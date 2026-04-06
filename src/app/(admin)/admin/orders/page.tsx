@@ -3,22 +3,20 @@ import { useState, useEffect } from "react";
 import { useCheckoutStore, Order } from "@/lib/store";
 import { 
   Search, Filter, Eye, CheckCircle2, XCircle, 
-  Package, Truck, Clock, X, ScanText, AlertTriangle, Check, ExternalLink, Store
+  Package, Truck, Clock, X, ScanText, AlertTriangle, Check, ExternalLink, Store, Trash2
 } from "lucide-react";
 
 export default function OrdersPage() {
-  const { adminOrders, fetchAdminOrders, updateOrderStatus } = useCheckoutStore();
+  const { adminOrders, fetchAdminOrders, updateOrderStatus, deleteOrderFromDB } = useCheckoutStore();
   
   const [activeTab, setActiveTab] = useState("All");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch live orders from Supabase when the page loads!
   useEffect(() => {
     fetchAdminOrders();
   }, [fetchAdminOrders]);
 
-  // Filter Logic
   const filteredOrders = adminOrders.filter(order => {
     if (activeTab === "All") return true;
     return order.status === activeTab;
@@ -36,6 +34,13 @@ export default function OrdersPage() {
     const success = await updateOrderStatus(dbId, "Shipped");
     if (success) setSelectedOrder(null);
     setIsProcessing(false);
+  };
+
+  const handleDelete = async (dbId: string, displayId: string) => {
+    // Add confirmation popup before deleting!
+    if (window.confirm(`Are you sure you want to permanently delete order ${displayId}? This action cannot be undone.`)) {
+      await deleteOrderFromDB(dbId);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -119,12 +124,22 @@ export default function OrdersPage() {
                     <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
                     <td className="px-6 py-4 text-right font-medium text-gray-900">₱{order.total.toFixed(2)}</td>
                     <td className="px-6 py-4 text-center">
-                      <button 
-                        onClick={() => setSelectedOrder(order)}
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[#D4537E] bg-[#FBEAF0]/50 hover:bg-[#FBEAF0] px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        <Eye className="w-4 h-4" /> Review
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => setSelectedOrder(order)}
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#D4537E] bg-[#FBEAF0]/50 hover:bg-[#FBEAF0] px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4" /> Review
+                        </button>
+                        {/* DELETION BUTTON */}
+                        <button 
+                          onClick={() => handleDelete(order.db_id, order.id)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Order"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

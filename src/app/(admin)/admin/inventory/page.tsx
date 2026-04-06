@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { 
-  Search, Filter, Plus, Edit2, AlertTriangle, TrendingUp, PackagePlus, X, UploadCloud, Image as ImageIcon, Loader2, Layers
+  Search, Filter, Plus, Edit2, AlertTriangle, TrendingUp, PackagePlus, X, UploadCloud, Image as ImageIcon, Loader2, Layers, Trash2
 } from "lucide-react";
 
 export default function InventoryPage() {
-  const { products, fetchProducts, addProductToDB, updateProductStockInDB, isLoadingProducts } = useCheckoutStore();
+  const { products, fetchProducts, addProductToDB, updateProductStockInDB, deleteProductFromDB, isLoadingProducts } = useCheckoutStore();
   const [searchQuery, setSearchQuery] = useState("");
   
   useEffect(() => {
@@ -21,9 +21,7 @@ export default function InventoryPage() {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  // THE NEW BACK-TO-BACK TOGGLE
   const [isBackToBack, setIsBackToBack] = useState(false);
-  
   const [newProduct, setNewProduct] = useState({ name: "", category: "University", price: 48, originalPrice: 50, stock: 10, description: "" });
   
   // DUAL IMAGE STATE
@@ -36,10 +34,6 @@ export default function InventoryPage() {
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleQuickRestock = async (id: string, currentStock: number, amountToAdd: number) => {
-    await updateProductStockInDB(id, currentStock + amountToAdd);
-  };
-
   const handleSaveEdit = async () => {
     if (!editingProduct) return;
     setIsUpdating(true);
@@ -48,7 +42,13 @@ export default function InventoryPage() {
     setEditingProduct(null);
   };
 
-  // Image Handler supporting both front and back
+  const handleDelete = async (id: string, name: string) => {
+    // Confirmation popup
+    if (window.confirm(`Are you sure you want to permanently delete "${name}"?`)) {
+      await deleteProductFromDB(id);
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
     const file = e.target.files?.[0];
     if (file) {
@@ -167,9 +167,14 @@ export default function InventoryPage() {
                   </td>
                   <td className="px-6 py-4 text-right font-medium text-gray-900">₱{item.price.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => { setEditingProduct(item); setEditStockValue(item.stock); }} className="p-2 text-gray-400 hover:text-[#D4537E] hover:bg-[#FBEAF0] rounded-lg transition-colors">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => { setEditingProduct(item); setEditStockValue(item.stock); }} className="p-2 text-gray-400 hover:text-[#D4537E] hover:bg-[#FBEAF0] rounded-lg transition-colors">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(item.id, item.name)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -234,7 +239,6 @@ export default function InventoryPage() {
                 </select>
               </div>
 
-              {/* INJECTED: Product Description Textarea */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</label>
                 <textarea 

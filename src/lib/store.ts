@@ -103,11 +103,14 @@ type CheckoutState = {
   
   addProductToDB: (productData: any, frontFile: File, backFile: File | null) => Promise<boolean>;
   updateProductStockInDB: (id: string, newStock: number) => Promise<boolean>;
+  deleteProductFromDB: (id: string) => Promise<boolean>; // NEW
+  
   addScheduleToDB: (date: string, startTime: string, endTime: string, location: string) => Promise<boolean>;
   toggleScheduleStatusDB: (id: string, currentStatus: boolean) => Promise<boolean>;
   
   placeOrder: (paymentDetails: { method: string, referenceNo: string }, proofFile: File | null) => Promise<boolean>;
   updateOrderStatus: (dbId: string, newStatus: string) => Promise<boolean>;
+  deleteOrderFromDB: (dbId: string) => Promise<boolean>; // NEW
 
   addItem: (item: CheckoutItem) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -285,9 +288,6 @@ export const useCheckoutStore = create<CheckoutState>()(
           const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData);
           if (itemsError) throw itemsError;
 
-          // ========================================================
-          // NEW DEDUCT STOCK LOGIC
-          // ========================================================
           for (const item of state.items) {
              const product = state.products.find(p => p.id === item.id);
              if (product) {
@@ -316,6 +316,19 @@ export const useCheckoutStore = create<CheckoutState>()(
           return true;
         } catch (error) {
           console.error("Failed to update order status:", error);
+          return false;
+        }
+      },
+
+      // NEW: DELETE ORDER
+      deleteOrderFromDB: async (dbId) => {
+        try {
+          const { error } = await supabase.from('orders').delete().eq('id', dbId);
+          if (error) throw error;
+          await get().fetchAdminOrders();
+          return true;
+        } catch (error) {
+          console.error("Failed to delete order:", error);
           return false;
         }
       },
@@ -371,6 +384,20 @@ export const useCheckoutStore = create<CheckoutState>()(
           return true;
         } catch (error) { return false; }
       },
+
+      // NEW: DELETE PRODUCT
+      deleteProductFromDB: async (id) => {
+        try {
+          const { error } = await supabase.from('products').delete().eq('id', id);
+          if (error) throw error;
+          set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+          return true;
+        } catch (error) {
+          console.error("Failed to delete product:", error);
+          return false;
+        }
+      },
+
       addScheduleToDB: async (date, startTime, endTime, location) => {
         try {
           const { error } = await supabase.from('pickup_schedules').insert([{ pickup_date: date, start_time: startTime, end_time: endTime, location: location, is_active: true }]);
@@ -423,7 +450,6 @@ export const useCheckoutStore = create<CheckoutState>()(
       
       toggleWishlist: (id) => set((state) => ({ wishlist: state.wishlist.includes(id) ? state.wishlist.filter(wId => wId !== id) : [...state.wishlist, id] })),
 
-      // Admin Auth Logic
       loginAdmin: (passcode) => {
         if (passcode === 'polycrafted2026') { 
           set({ isAdminAuthenticated: true });
