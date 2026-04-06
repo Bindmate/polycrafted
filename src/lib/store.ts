@@ -187,17 +187,13 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
       },
 
-      // FIXED: Tighter checks to prevent fetching another user's orders
       fetchMyOrders: async () => {
         const state = get();
         const namesToMatch = [];
         
-        // If logged in, ONLY fetch orders belonging to this account name
         if (state.user?.name) {
           namesToMatch.push(state.user.name);
-        } 
-        // If guest, fall back to whatever name they typed in shipping
-        else if (state.shippingDetails.fullName) {
+        } else if (state.shippingDetails.fullName) {
           namesToMatch.push(state.shippingDetails.fullName);
         }
         
@@ -255,7 +251,7 @@ export const useCheckoutStore = create<CheckoutState>()(
 
           const { data: orderData, error: orderError } = await supabase.from('orders').insert([{
             display_id: displayId,
-            customer_name: state.user?.name || state.shippingDetails.fullName || 'Unknown', // Prioritize account name!
+            customer_name: state.user?.name || state.shippingDetails.fullName || 'Unknown', 
             customer_phone: state.shippingDetails.phone || 'Unknown',
             customer_school: demoString,
             shipping_method: state.shippingMethod,
@@ -284,8 +280,23 @@ export const useCheckoutStore = create<CheckoutState>()(
           const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData);
           if (itemsError) throw itemsError;
 
+          // ========================================================
+          // NEW DEDUCT STOCK LOGIC
+          // ========================================================
+          for (const item of state.items) {
+             const product = state.products.find(p => p.id === item.id);
+             if (product) {
+               // Calculate new stock, ensuring it doesn't drop below 0
+               const newStock = Math.max(0, product.stock - item.quantity);
+               await get().updateProductStockInDB(product.id, newStock);
+             }
+          }
+
           state.clearCart();
           await get().fetchMyOrders(); 
+          // Refetch products so the storefront shows the updated stock numbers instantly
+          await get().fetchProducts();
+          
           return true;
 
         } catch (error) {
@@ -354,9 +365,6 @@ export const useCheckoutStore = create<CheckoutState>()(
       
       clearCart: () => set({ items: [], selectedPickup: null }),
       
-      login: (user) => set({ user }),
-      
-      // FIXED: When logging out, completely wipe the session data so the next account starts fresh!
       logout: () => set({ 
         user: null, 
         wishlist: [], 
@@ -365,6 +373,8 @@ export const useCheckoutStore = create<CheckoutState>()(
         shippingDetails: { fullName: '', phone: '', address: '' },
         selectedPickup: null
       }),
+      
+      login: (user) => set({ user }),
       
       toggleWishlist: (id) => set((state) => ({ wishlist: state.wishlist.includes(id) ? state.wishlist.filter(wId => wId !== id) : [...state.wishlist, id] })),
     }),
