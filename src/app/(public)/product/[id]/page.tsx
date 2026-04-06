@@ -429,7 +429,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
                 <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300" />
               </div>
-              <span className="text-xs sm:text-sm font-medium text-gray-700 ml-1">4.0</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 ml-1">0.0</span>
             </div>
 
             {/* DYNAMIC VARIANT SELECTOR */}
@@ -565,7 +565,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 <span className="bg-blue-50 text-blue-700 text-[9px] sm:text-[11px] font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-100">GCash</span>
                 <span className="bg-green-50 text-green-700 text-[9px] sm:text-[11px] font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-green-100">Maya</span>
-                <span className="bg-gray-100 text-gray-700 text-[9px] sm:text-[11px] font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-gray-200">Cash on Delivery</span>
+                <span className="bg-gray-100 text-gray-700 text-[9px] sm:text-[11px] font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-gray-200">Cash via Pick-up</span>
               </div>
             </div>
           </div>
@@ -603,7 +603,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         <div className="bg-white border border-[#f0e8e0] rounded-[20px] sm:rounded-[24px] p-6 sm:p-10 flex flex-col md:flex-row items-center gap-8 sm:gap-10 shadow-sm">
           <div className="w-full md:w-auto flex justify-center items-center relative">
             <div className="w-40 sm:w-48 h-[100px] sm:h-[122px] bg-slate-800 rounded-xl border-2 border-slate-700 relative flex items-center justify-center shadow-lg">
-              <span className="text-slate-400 font-medium text-xs sm:text-sm">85.6 × 54mm</span>
+              <span className="text-slate-400 font-medium text-xs sm:text-sm">9 × 5.5cm</span>
               <div className="absolute -bottom-4 sm:-bottom-6 -right-4 sm:-right-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-yellow-600 border-4 border-yellow-400 flex items-center justify-center text-[8px] sm:text-[10px] font-bold text-yellow-100 shadow-md">
                 ₱1
               </div>
@@ -628,12 +628,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </li>
               <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2">
                 <span className="text-gray-500">Fits</span>
-                <span className="font-medium text-[#2C2C2A]">Beep, Bank Cards, IDs</span>
+                <span className="font-medium text-[#2C2C2A]">Beep Card or Student Beep Card</span>
               </li>
             </ul>
             <div className="bg-[#EAF3DE] text-[#27500A] px-3 sm:px-4 py-2 sm:py-3 rounded-[10px] sm:rounded-[14px] text-xs sm:text-sm font-medium flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-              NFC / RFID passes through easily.
+              NFC Ready → compatible with tapping.
             </div>
           </div>
         </div>
