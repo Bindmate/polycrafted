@@ -2,7 +2,23 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation"; 
-import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, CheckCircle2, Minus, Trash2, Sparkles, TicketPercent, Layers } from "lucide-react";
+import { 
+  ShoppingBag, 
+  ChevronDown, 
+  Heart, 
+  Search, 
+  Plus, 
+  Star, 
+  Share, 
+  X, 
+  User, 
+  CheckCircle2, 
+  Minus, 
+  Trash2, 
+  Sparkles, 
+  TicketPercent, 
+  Layers 
+} from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
 const VIBES = ["All drops", "Sanrio", "Coquette", "College editions", "University"];
@@ -10,7 +26,19 @@ type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
 
 export default function CatalogPage() {
   const router = useRouter();
-  const { addItem, items, getTotal, user, wishlist, toggleWishlist, products, fetchProducts, updateQuantity, removeItem } = useCheckoutStore();
+  
+  const { 
+    addItem, 
+    items, 
+    getTotal, 
+    user, 
+    wishlist, 
+    toggleWishlist, 
+    products, 
+    fetchProducts, 
+    updateQuantity, 
+    removeItem 
+  } = useCheckoutStore();
   
   useEffect(() => {
     fetchProducts();
@@ -23,18 +51,23 @@ export default function CatalogPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    if (isCartOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
+    if (isCartOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
   }, [isCartOpen]);
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
-  const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
   
-  const baseTotal = items.reduce((acc, item) => acc + (item.quantity * 30), 0);
-  const currentTotal = items.reduce((acc, item) => acc + (item.quantity * activeUnitPrice), 0);
-  const totalSavings = baseTotal - currentTotal;
+  // Savings Math using the new 30/43/67 logic
+  const baseTotal = cartItemCount * 30;
+  const bundleTotal = cartItemCount === 0 ? 0 : cartItemCount === 1 ? 30 : 43 + ((cartItemCount - 2) * 24);
+  const totalSavings = baseTotal - bundleTotal;
 
-  const upsellProducts = products.filter(p => !items.some(i => i.id === p.id)).slice(0, 4);
+  const upsellProducts = products
+    .filter(p => !items.some(i => i.id.replace('-front','').replace('-back','') === p.id))
+    .slice(0, 4);
 
   const handleShare = (productName: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -51,7 +84,19 @@ export default function CatalogPage() {
 
   const handleQuickAdd = (product: any, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    addItem({ id: product.id, name: product.name, price: product.price, quantity: 1 });
+    
+    // If it's a back-to-back design, force them to the product page so they can pick front/back/pair!
+    if (product.backImage) {
+      router.push(`/product/${product.id}`);
+      return;
+    }
+
+    addItem({ 
+      id: product.id, 
+      name: product.name, 
+      price: 30, 
+      quantity: 1 
+    });
     setIsCartOpen(true);
   };
 
@@ -69,7 +114,7 @@ export default function CatalogPage() {
     return filtered;
   }, [activeVibe, sortBy, searchQuery, products]);
 
-  // FIXED: Added the custom Back-to-Back styling here so we don't need duplicate badges
+  // Added the custom Back-to-Back styling here so we don't need duplicate badges
   const getBadgeStyle = (badge: string | null) => {
     if (badge === "Best seller") return "bg-[#FAEEDA] text-[#633806]";
     if (badge === "New drop") return "bg-[#EAF3DE] text-[#27500A]";
@@ -92,7 +137,10 @@ export default function CatalogPage() {
               <h2 className="text-lg md:text-xl font-bold text-[#2C2C2A] flex items-center gap-2">
                 My Bag <span className="text-sm font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{cartItemCount}</span>
               </h2>
-              <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
+              <button 
+                onClick={() => setIsCartOpen(false)} 
+                className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -103,14 +151,14 @@ export default function CatalogPage() {
                   <div className="bg-[#FBEAF0] border border-[#D4537E]/20 p-4 rounded-xl flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-[#D4537E] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
-                      <p className="text-xs text-gray-600">Buy any 2 stickers to drop the price to ₱24 each.</p>
+                      <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Volume Pricing!</p>
+                      <p className="text-xs text-gray-600">Buy 2 pieces for ₱43. Every succeeding piece is only ₱24!</p>
                     </div>
                   </div>
                 ) : cartItemCount === 1 ? (
                   <div className="bg-[#FBEAF0] border border-[#D4537E]/20 p-4 rounded-xl">
                     <p className="text-sm font-bold text-[#D4537E] mb-1">You're almost there!</p>
-                    <p className="text-xs text-gray-600 mb-3">Add 1 more sticker to save ₱12 on your order.</p>
+                    <p className="text-xs text-gray-600 mb-3">Add 1 more piece to unlock the ₱43 Pair Price!</p>
                     <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#D4537E]/20">
                       <div className="bg-[#D4537E] h-full w-1/2 transition-all duration-500"></div>
                     </div>
@@ -119,8 +167,8 @@ export default function CatalogPage() {
                   <div className="bg-[#EAF3DE] border border-[#71A051]/20 p-4 rounded-xl flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-bold text-[#71A051] mb-1">Pair Promo Active!</p>
-                      <p className="text-xs text-[#27500A]">You're saving <strong>₱{totalSavings.toFixed(2)}</strong> on this order.</p>
+                      <p className="text-sm font-bold text-[#71A051] mb-1">Volume Promo Active!</p>
+                      <p className="text-xs text-[#27500A]">Awesome! You're saving <strong>₱{totalSavings.toFixed(2)}</strong> on your items.</p>
                     </div>
                   </div>
                 )}
@@ -135,12 +183,18 @@ export default function CatalogPage() {
                 ) : (
                   <ul className="space-y-4">
                     {items.map((item, index) => {
-                      const cartProduct = products.find(p => p.id === item.id);
+                      const baseId = item.id.replace('-front', '').replace('-back', '');
+                      const cartProduct = products.find(p => p.id === baseId);
+                      
                       return (
                         <li key={`${item.id}-${index}`} className="flex gap-4 items-center bg-white p-3 md:p-4 rounded-[20px] border border-[#f0e8e0] shadow-sm">
                           <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-[14px] flex-shrink-0 flex items-center justify-center overflow-hidden relative bg-gradient-to-br ${cartProduct?.color || 'from-gray-100 to-gray-200'}`}>
                             {cartProduct?.frontImage ? (
-                              <img src={cartProduct.frontImage} alt={item.name} className="w-full h-full object-cover" />
+                              <img 
+                                src={item.id.includes('-back') && cartProduct.backImage ? cartProduct.backImage : cartProduct.frontImage} 
+                                className="w-full h-full object-cover" 
+                                alt={item.name}
+                              />
                             ) : (
                               <span className="text-xs text-gray-400 font-bold">{item.name.split(' ')[0]}</span>
                             )}
@@ -156,7 +210,10 @@ export default function CatalogPage() {
                                   {cartProduct && <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1 block">{cartProduct.category}</span>}
                                   <h4 className="text-sm md:text-base font-bold text-[#2C2C2A] leading-tight line-clamp-1">{item.name}</h4>
                                 </div>
-                                <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500 p-1 transition-colors">
+                                <button 
+                                  onClick={() => removeItem(item.id)} 
+                                  className="text-gray-400 hover:text-red-500 p-1 transition-colors"
+                                >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
@@ -164,9 +221,19 @@ export default function CatalogPage() {
                             
                             <div className="flex items-end justify-between mt-3">
                               <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-8 px-1">
-                                <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3" /></button>
+                                <button 
+                                  onClick={() => updateQuantity(item.id, item.quantity - 1)} 
+                                  className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
                                 <span className="w-6 text-center text-xs font-bold text-[#2C2C2A]">{item.quantity}</span>
-                                <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-3 h-3" /></button>
+                                <button 
+                                  onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                                  className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
                               </div>
                               
                               <div className="text-right">
@@ -174,7 +241,7 @@ export default function CatalogPage() {
                                   <p className="text-[10px] text-gray-400 line-through mb-0.5">₱{(30 * item.quantity).toFixed(2)}</p>
                                 )}
                                 <p className="text-sm md:text-base font-black text-[#D4537E]">
-                                  ₱{(activeUnitPrice * item.quantity).toFixed(2)}
+                                  ₱{(30 * item.quantity).toFixed(2)}
                                 </p>
                               </div>
                             </div>
@@ -188,10 +255,10 @@ export default function CatalogPage() {
 
               {items.length > 0 && upsellProducts.length > 0 && (
                 <div className="p-5 md:p-6 bg-[#fdf8f5] border-t border-[#f0e8e0]">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">You might also like (Add for just ₱{activeUnitPrice})</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">You might also like (Add for just ₱30)</p>
                   <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
                     {upsellProducts.map(upsell => (
-                      <div key={upsell.id} className="flex-shrink-0 w-28 group cursor-pointer" onClick={() => handleQuickAdd(upsell)}>
+                      <div key={upsell.id} className="flex-shrink-0 w-28 group cursor-pointer" onClick={(e) => handleQuickAdd(upsell, e)}>
                         <div className={`w-full aspect-[1.58/1] rounded-xl relative overflow-hidden bg-gradient-to-br ${upsell.color} border border-gray-200 mb-2`}>
                           {upsell.frontImage && <img src={upsell.frontImage} className="w-full h-full object-cover" />}
                           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -209,9 +276,14 @@ export default function CatalogPage() {
             {items.length > 0 && (
               <div className="p-5 md:p-6 border-t border-[#f0e8e0] bg-white mt-auto">
                 {totalSavings > 0 && (
-                  <p className="text-xs font-bold text-[#71A051] text-center mb-3">You saved ₱{totalSavings.toFixed(2)} with Pair Pricing!</p>
+                  <div className="flex justify-between items-center mb-3 text-sm">
+                    <span className="text-[#71A051] font-bold flex items-center gap-1">
+                      <TicketPercent className="w-4 h-4"/> Bundle Savings
+                    </span>
+                    <span className="text-[#71A051] font-bold">-₱{totalSavings.toFixed(2)}</span>
+                  </div>
                 )}
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-4 pt-3 border-t border-[#f0e8e0]">
                   <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Subtotal</span>
                   <span className="text-2xl font-black text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
                 </div>
@@ -432,7 +504,6 @@ export default function CatalogPage() {
                       </span>
                     </div>
 
-                    {/* FIXED: DUPICATE BADGE REMOVED */}
                     <div className="absolute top-2 left-2 xs:top-3 xs:left-3 flex flex-col gap-1.5 items-start z-10">
                       {product.badge && (
                         <span className={`text-[9px] xs:text-[10px] uppercase tracking-wider font-bold px-2 xs:px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 ${getBadgeStyle(product.badge)}`}>
@@ -501,10 +572,16 @@ export default function CatalogPage() {
                   </div>
 
                   <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="text-base xs:text-lg font-black text-[#D4537E]">₱{product.price.toFixed(2)}</p>
-                    <span className="text-[10px] bg-[#FBEAF0] text-[#D4537E] px-2 py-0.5 rounded-md font-bold whitespace-nowrap">
-                        ₱24 pairs
-                    </span>
+                    <p className="text-base xs:text-lg font-black text-[#D4537E]">₱30.00</p>
+                    {product.backImage ? (
+                      <span className="text-[10px] bg-[#FBEAF0] text-[#D4537E] px-2 py-0.5 rounded-md font-bold whitespace-nowrap">
+                          ₱43 pair
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-[#FBEAF0] text-[#D4537E] px-2 py-0.5 rounded-md font-bold whitespace-nowrap">
+                          Volume discount
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

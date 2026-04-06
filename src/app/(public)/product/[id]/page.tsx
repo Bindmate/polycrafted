@@ -3,12 +3,11 @@ import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { 
   ShoppingBag, Heart, ChevronRight, Star, Plus, Minus, 
-  CheckCircle2, Copy, MessageCircle, Camera, Smartphone, 
-  Droplets, ShieldCheck, HelpCircle, LayoutGrid, X, Layers
+  CheckCircle2, Copy, Camera, Smartphone, Droplets, ShieldCheck, 
+  LayoutGrid, X, Layers, TicketPercent, Trash2 
 } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
-// CONTINUOUS 360 SPIN ANIMATION
 const style = `
   @keyframes spin-card {
     0% { transform: rotateY(0deg) rotateX(4deg); }
@@ -16,142 +15,100 @@ const style = `
     100% { transform: rotateY(360deg) rotateX(4deg); }
   }
   .perspective-container { perspective: 1200px; }
-  
-  .spin-wrapper {
-    animation: spin-card 12s linear infinite;
-    transform-style: preserve-3d;
-    width: 90%; 
-    height: 100%;
-    position: relative;
-  }
-  @media (min-width: 768px) {
-    .spin-wrapper { width: 85%; }
-  }
-  .spin-wrapper:hover { 
-    animation-play-state: paused; 
-  }
-
-  .card-face {
-    position: absolute;
-    inset: 0;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    border-radius: 20px;
-    overflow: hidden;
-  }
-
-  .card-back {
-    transform: rotateY(180deg);
-  }
-
-  .card-depth::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
-    border-radius: 20px;
-    z-index: -1;
-    transform: translateZ(-1px);
-  }
+  .spin-wrapper { animation: spin-card 12s linear infinite; transform-style: preserve-3d; width: 90%; height: 100%; position: relative; }
+  @media (min-width: 768px) { .spin-wrapper { width: 85%; } }
+  .spin-wrapper:hover { animation-play-state: paused; }
+  .card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 20px; overflow: hidden; }
+  .card-back { transform: rotateY(180deg); }
+  .card-depth::before { content: ''; position: absolute; inset: -1px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%); border-radius: 20px; z-index: -1; transform: translateZ(-1px); }
 `;
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const { addItem, items, getTotal, products, wishlist, toggleWishlist } = useCheckoutStore();
+  const { addItem, items, getTotal, products, wishlist, toggleWishlist, removeItem, updateQuantity } = useCheckoutStore();
   
   const [quantity, setQuantity] = useState(1);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  
-  // NEW: State to track which bag item is being previewed on the BACK of the card
   const [previewBackId, setPreviewBackId] = useState<string | null>(null);
 
   const product = products.find((p) => p.id === resolvedParams.id);
+  const [variant, setVariant] = useState(product?.backImage ? 'pair' : 'solo');
 
-  // Auto-select a back preview if they have items in their bag!
   useEffect(() => {
     if (product && !product.backImage) {
-      const bagProducts = items.map(cartItem => products.find(p => p.id === cartItem.id)).filter(Boolean);
-      // Find the first item in bag that isn't the current product to use as back
+      const bagProducts = items.map(cartItem => products.find(p => p.id === cartItem.id.replace('-front','').replace('-back',''))).filter(Boolean);
       const possibleBack = bagProducts.find(p => p?.id !== product.id);
-      if (possibleBack && !previewBackId) {
-        setPreviewBackId(possibleBack.id);
-      }
+      if (possibleBack && !previewBackId) setPreviewBackId(possibleBack.id);
     }
   }, [items, product, products, previewBackId]);
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#2C2C2A] mb-4">Design not found</h1>
-          <Link href="/catalog" className="text-[#D4537E] hover:underline">Return to catalog</Link>
-        </div>
-      </div>
-    );
-  }
+  if (!product) return <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">Design not found.</div>;
 
-  const savings = product.originalPrice - product.price;
   const isSaved = wishlist.includes(product.id);
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
-  const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
+  
+  const baseTotal = cartItemCount * 30;
+  const bundleTotal = cartItemCount === 0 ? 0 : cartItemCount === 1 ? 30 : 43 + ((cartItemCount - 2) * 24);
+  const totalSavings = baseTotal - bundleTotal;
 
-  // DYNAMIC BACK IMAGE LOGIC
   const previewProduct = previewBackId ? products.find(p => p.id === previewBackId) : null;
   const displayBackImage = product.backImage || previewProduct?.frontImage || null;
 
-  // Get all unique products currently in the user's bag
-  const bagProducts = Array.from(new Set(items.map(item => item.id)))
-    .map(id => products.find(p => p.id === id))
-    .filter(Boolean) as any[];
+  const bagProducts = Array.from(new Set(items.map(item => item.id.replace('-front','').replace('-back',''))))
+    .map(id => products.find(p => p.id === id)).filter(Boolean) as any[];
 
   const handleAddToCart = () => {
-    addItem({ id: product.id, name: product.name, price: product.price, quantity: quantity });
+    if (variant === 'pair') {
+      addItem({ id: `${product.id}-front`, name: `${product.name} (Front)`, price: 30, quantity: quantity });
+      addItem({ id: `${product.id}-back`, name: `${product.name} (Back)`, price: 30, quantity: quantity });
+    } else if (variant === 'front') {
+      addItem({ id: `${product.id}-front`, name: `${product.name} (Front)`, price: 30, quantity: quantity });
+    } else if (variant === 'back') {
+      addItem({ id: `${product.id}-back`, name: `${product.name} (Back)`, price: 30, quantity: quantity });
+    } else {
+      addItem({ id: product.id, name: product.name, price: 30, quantity: quantity });
+    }
     setIsCartOpen(true);
   };
 
   const handleAddUpsellToCart = (upsellProduct: any) => {
-    addItem({ id: upsellProduct.id, name: upsellProduct.name, price: upsellProduct.price, quantity: 1 });
-    setPreviewBackId(upsellProduct.id); // Instantly preview it on the spinning card!
-    // Notice we DON'T open the cart drawer here, so they can watch the card spin!
+    addItem({ id: upsellProduct.id, name: upsellProduct.name, price: 30, quantity: 1 });
+    setPreviewBackId(upsellProduct.id); 
   };
 
   return (
     <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24 relative overflow-x-hidden">
       <style>{style}</style>
 
-      {/* --- SLIDE-OUT CART DRAWER --- */}
-      {isCartOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
-      )}
+      {isCartOpen && <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />}
       
       <div className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-center justify-between p-6 border-b border-[#f0e8e0]">
           <h2 className="text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
-            My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} items)</span>
+            My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} pieces)</span>
           </h2>
           <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {/* VOLUME PRICING PROGRESS BAR */}
           <div className="bg-[#FBEAF0]/50 p-6 border-b border-[#f0e8e0]">
             {cartItemCount === 0 ? (
                <div>
-                 <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Pair Pricing!</p>
-                 <p className="text-xs text-gray-600">Buy any 2 stickers to drop the price to ₱24 each.</p>
+                 <p className="text-sm font-bold text-[#D4537E] mb-1">Unlock Volume Pricing!</p>
+                 <p className="text-xs text-gray-600">Buy 2 pieces for ₱43. Every succeeding piece is only ₱24!</p>
                </div>
             ) : cartItemCount === 1 ? (
                <div>
                  <p className="text-sm font-bold text-[#D4537E] mb-1">You're almost there!</p>
-                 <p className="text-xs text-gray-600 mb-3">Add 1 more sticker to save ₱12 on your order.</p>
+                 <p className="text-xs text-gray-600 mb-3">Add 1 more piece to unlock the ₱43 Pair Price!</p>
                  <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
                    <div className="bg-[#D4537E] h-full w-1/2 transition-all duration-500"></div>
                  </div>
                </div>
             ) : (
                <div>
-                 <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Pair Promo Active!</p>
-                 <p className="text-xs text-gray-600 mb-3">Awesome! All stickers are now only ₱24.00 each.</p>
+                 <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Volume Promo Active!</p>
+                 <p className="text-xs text-gray-600 mb-3">Awesome! You're saving <strong>₱{totalSavings.toFixed(2)}</strong> on your items.</p>
                  <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
                    <div className="bg-[#71A051] h-full w-full transition-all duration-500"></div>
                  </div>
@@ -167,21 +124,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
             ) : (
               <ul className="space-y-6">
-                {items.map((item, index) => (
-                  <li key={`${item.id}-${index}`} className="flex gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#f0e8e0] to-gray-200 border border-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold text-center p-2">
-                      {item.name.split(' ')[0]}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-[#2C2C2A] line-clamp-2">{item.name}</h4>
-                      <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
-                      <p className="text-sm font-bold text-[#2C2C2A] mt-1 flex items-center gap-2">
-                        ₱{(activeUnitPrice * item.quantity).toFixed(2)}
-                        {cartItemCount >= 2 && <span className="text-[10px] text-gray-400 line-through font-normal">₱{(30 * item.quantity).toFixed(2)}</span>}
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                {items.map((item, index) => {
+                  const baseId = item.id.replace('-front', '').replace('-back', '');
+                  const cartProduct = products.find(p => p.id === baseId);
+                  return (
+                    <li key={`${item.id}-${index}`} className="flex gap-4">
+                      <div className={`w-16 h-16 rounded-xl border border-gray-100 flex-shrink-0 overflow-hidden relative bg-gradient-to-br ${cartProduct?.color || 'from-gray-100 to-gray-200'}`}>
+                         {cartProduct?.frontImage && <img src={item.id.includes('-back') && cartProduct.backImage ? cartProduct.backImage : cartProduct.frontImage} className="w-full h-full object-cover" alt={item.name} />}
+                      </div>
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div className="flex justify-between items-start">
+                          <h4 className="text-sm font-bold text-[#2C2C2A] leading-tight line-clamp-2 pr-4">{item.name}</h4>
+                          <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                        <div className="flex items-end justify-between mt-2">
+                          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-7 px-1">
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center text-gray-500"><Minus className="w-3 h-3" /></button>
+                            <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500"><Plus className="w-3 h-3" /></button>
+                          </div>
+                          <p className="text-sm font-bold text-gray-500">₱{(30 * item.quantity).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -189,12 +156,18 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
         {items.length > 0 && (
           <div className="p-6 border-t border-[#f0e8e0] bg-[#fdf8f5]">
-            <div className="flex justify-between items-center mb-6">
+            {totalSavings > 0 && (
+              <div className="flex justify-between items-center mb-3 text-sm">
+                <span className="text-[#71A051] font-bold flex items-center gap-1"><TicketPercent className="w-4 h-4"/> Bundle Savings</span>
+                <span className="text-[#71A051] font-bold">-₱{totalSavings.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center mb-6 pt-3 border-t border-[#f0e8e0]">
               <span className="text-base font-medium text-[#2C2C2A]">Subtotal</span>
               <span className="text-2xl font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
             </div>
-            <Link href="/checkout/details" className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm">
-              Go to checkout
+            <Link href="/checkout/details" className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm" onClick={() => setIsCartOpen(false)}>
+              Proceed to checkout
             </Link>
           </div>
         )}
@@ -211,10 +184,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <span className="text-[#2C2C2A] truncate max-w-[120px] sm:max-w-none">{product.category}</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-            <button 
-              onClick={() => toggleWishlist(product.id)}
-              className="text-gray-600 hover:text-[#D4537E] transition-colors relative p-2"
-            >
+            <button onClick={() => toggleWishlist(product.id)} className="text-gray-600 hover:text-[#D4537E] transition-colors relative p-2">
               <Heart className="w-5 h-5" />
               {wishlist.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[#D4537E] rounded-full"></span>}
             </button>
@@ -229,19 +199,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
           
-          {/* LEFT COLUMN: 3D Image Area */}
           <div className="flex flex-col items-center">
             <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-4 sm:py-8">
-              
-              {/* THE CONTINUOUS SPIN WRAPPER */}
               <div className="spin-wrapper">
-                  
-                {/* SIDE A: FRONT */}
                 <div className={`card-face card-depth shadow-2xl bg-gradient-to-br ${product.color}`}>
                   <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.frontImage}')` }} />
                 </div>
-
-                {/* SIDE B: BACK */}
                 <div className="card-face card-back card-depth shadow-2xl bg-gray-100">
                   {displayBackImage ? (
                     <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${displayBackImage}')` }} />
@@ -253,31 +216,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
 
-            <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-4 text-center">
-              Hold touch or hover to pause spin
-            </p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-4 text-center">Hold touch or hover to pause spin</p>
 
-            {/* DYNAMIC THUMBNAIL SELECTOR (Only shows if they have items in bag and it's not a pre-made set) */}
             {!product.backImage && bagProducts.length > 0 && (
               <div className="w-full max-w-xs mt-6">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Preview back with bag items</p>
                 <div className="flex overflow-x-auto gap-2 pb-2 px-2 no-scrollbar snap-x justify-center">
-                  <button 
-                    onClick={() => setPreviewBackId(null)}
-                    className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${!previewBackId ? 'border-[#D4537E]' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
+                  <button onClick={() => setPreviewBackId(null)} className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${!previewBackId ? 'border-[#D4537E]' : 'border-gray-200 hover:border-gray-300'}`}>
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-[8px] text-gray-400 font-bold">BLANK</div>
                   </button>
                   {bagProducts.map(bp => (
-                    <button 
-                      key={bp.id}
-                      onClick={() => setPreviewBackId(bp.id)}
-                      className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${previewBackId === bp.id ? 'border-[#D4537E]' : 'border-transparent hover:border-gray-300 shadow-sm'}`}
-                    >
+                    <button key={bp.id} onClick={() => setPreviewBackId(bp.id)} className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${previewBackId === bp.id ? 'border-[#D4537E]' : 'border-transparent hover:border-gray-300 shadow-sm'}`}>
                       <img src={bp.frontImage} className="w-full h-full object-cover" />
                     </button>
                   ))}
@@ -285,7 +237,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
             )}
 
-            {/* Share Buttons */}
             <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-3 mt-8 text-xs sm:text-sm font-medium text-gray-500">
               <span className="hidden sm:inline">Share design:</span>
               <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors"><Copy className="w-3.5 h-3.5" /> Copy</button>
@@ -293,7 +244,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Product Info */}
           <div className="flex flex-col">
             <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
               <span className="bg-[#EEEDFE] text-[#3C3489] text-[10px] sm:text-[11px] font-medium uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full">{product.category}</span>
@@ -302,11 +252,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
 
             <h1 className="text-xl sm:text-[22px] font-medium text-[#2C2C2A] mb-2 sm:mb-3 leading-snug">{product.name}</h1>
-            
-            {/* FIXED: Added whitespace-pre-wrap to properly show the paragraphs entered in the Admin portal */}
-            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 whitespace-pre-wrap">
-              {product.description || "A premium, water-resistant vinyl sticker designed to elevate your daily commute. Leaves no residue and fits perfectly on standard cards."}
-            </p>
+            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 whitespace-pre-wrap">{product.description || "A premium, water-resistant vinyl sticker designed to elevate your daily commute. Leaves no residue and fits perfectly on standard cards."}</p>
 
             <div className="flex items-center gap-1.5 mb-6">
               <div className="flex text-[#D28E3D]">
@@ -315,23 +261,47 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span className="text-xs sm:text-sm font-medium text-gray-700 ml-1">4.0</span>
             </div>
 
-            {/* UPGRADED PRICING DISPLAY */}
-            <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-xl p-4 sm:p-5 mb-6">
-              <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pricing</p>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold text-[#2C2C2A]">₱{product.price.toFixed(2)}</span>
-                    <span className="text-xs sm:text-sm text-gray-500 font-medium">/ solo piece</span>
-                  </div>
+            {/* DYNAMIC VARIANT SELECTOR */}
+            {product.backImage ? (
+              <div className="mb-6">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Select Format</p>
+                <div className="grid grid-cols-1 gap-2 mb-2">
+                  <button onClick={() => setVariant('pair')} className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'pair' ? 'border-[#D4537E] bg-[#FBEAF0]/50 shadow-sm' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
+                    <div className="flex flex-col items-start">
+                      <span className={`text-sm font-bold ${variant === 'pair' ? 'text-[#D4537E]' : 'text-gray-700'}`}>Complete Set (Front & Back)</span>
+                      <span className="text-xs text-gray-500 font-medium">2 stickers included</span>
+                    </div>
+                    <span className={`font-bold text-lg ${variant === 'pair' ? 'text-[#D4537E]' : 'text-gray-700'}`}>₱43.00</span>
+                  </button>
                 </div>
-                <div className="bg-[#EAF3DE] text-[#27500A] px-3 py-2 rounded-lg text-[10px] sm:text-xs font-bold shadow-sm w-fit">
-                  Drops to ₱24.00 if you buy 2+
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setVariant('front')} className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'front' ? 'border-[#D4537E] bg-[#FBEAF0]/50' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
+                    <span className={`text-sm font-bold ${variant === 'front' ? 'text-[#D4537E]' : 'text-gray-700'}`}>Front Only</span>
+                    <span className={`font-bold ${variant === 'front' ? 'text-[#D4537E]' : 'text-gray-500'}`}>₱30.00</span>
+                  </button>
+                  <button onClick={() => setVariant('back')} className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'back' ? 'border-[#D4537E] bg-[#FBEAF0]/50' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
+                    <span className={`text-sm font-bold ${variant === 'back' ? 'text-[#D4537E]' : 'text-gray-700'}`}>Back Only</span>
+                    <span className={`font-bold ${variant === 'back' ? 'text-[#D4537E]' : 'text-gray-500'}`}>₱30.00</span>
+                  </button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-[#fdf8f5] border border-[#f0e8e0] rounded-xl p-4 sm:p-5 mb-6">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pricing</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-bold text-[#2C2C2A]">₱30.00</span>
+                      <span className="text-xs sm:text-sm text-gray-500 font-medium">/ solo piece</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#EAF3DE] text-[#27500A] px-3 py-2 rounded-lg text-[10px] sm:text-xs font-bold shadow-sm w-fit">
+                    Pairs start at ₱43.00
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {/* UPSELL WIDGET: Only show if this is a Solo design (no backImage) */}
             {!product.backImage && (
               <div className="bg-[#FBEAF0]/50 border border-[#D4537E]/30 rounded-xl p-4 sm:p-5 mb-6 shadow-sm">
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
@@ -339,12 +309,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-[#D4537E]" />
                     <h3 className="text-sm sm:text-base font-bold text-[#D4537E]">Complete your pair!</h3>
                   </div>
-                  <span className="bg-[#D4537E] text-white text-[8px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">SAVE ₱12</span>
+                  <span className="bg-[#D4537E] text-white text-[8px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">SAVE ₱17</span>
                 </div>
-                <p className="text-[10px] sm:text-xs text-gray-600 mb-4 leading-relaxed">You selected a Front design. Add any Back design below to complete your Beep card and unlock the ₱48 pair promo.</p>
+                <p className="text-[10px] sm:text-xs text-gray-600 mb-4 leading-relaxed">You selected a Front design. Add any Back design below to complete your Beep card and unlock the ₱43 pair promo.</p>
                 
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  {/* Find 3 other solo products to recommend */}
                   {products.filter(p => p.id !== product.id && !p.backImage).slice(0, 3).map((upsell) => (
                     <div key={upsell.id} className="text-center group cursor-pointer" onClick={() => handleAddUpsellToCart(upsell)}>
                       <div className={`aspect-[1.58/1] w-full bg-gradient-to-br ${upsell.color} rounded-lg border border-[#f0e8e0] mb-2 overflow-hidden relative shadow-sm group-hover:shadow-md transition-all`}>
@@ -401,7 +370,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
       <hr className="border-[#f0e8e0] my-12 sm:my-16 max-w-7xl mx-auto" />
 
-      {/* REST OF SECTIONS REMAIN IDENTICAL BUT WITH PADDING TWEAKS FOR MOBILE */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-lg sm:text-xl font-medium text-[#2C2C2A] mb-6 sm:mb-8 text-center">How to apply your sticker</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -423,7 +391,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
       <hr className="border-[#f0e8e0] my-12 sm:my-16 max-w-7xl mx-auto" />
 
-      {/* SECTION 2: Size & Compatibility */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white border border-[#f0e8e0] rounded-[20px] sm:rounded-[24px] p-6 sm:p-10 flex flex-col md:flex-row items-center gap-8 sm:gap-10 shadow-sm">
           <div className="w-full md:w-auto flex justify-center items-center relative">

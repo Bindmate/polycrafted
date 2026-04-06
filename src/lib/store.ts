@@ -103,14 +103,14 @@ type CheckoutState = {
   
   addProductToDB: (productData: any, frontFile: File, backFile: File | null) => Promise<boolean>;
   updateProductStockInDB: (id: string, newStock: number) => Promise<boolean>;
-  deleteProductFromDB: (id: string) => Promise<boolean>; // NEW
+  deleteProductFromDB: (id: string) => Promise<boolean>; 
   
   addScheduleToDB: (date: string, startTime: string, endTime: string, location: string) => Promise<boolean>;
   toggleScheduleStatusDB: (id: string, currentStatus: boolean) => Promise<boolean>;
   
   placeOrder: (paymentDetails: { method: string, referenceNo: string }, proofFile: File | null) => Promise<boolean>;
   updateOrderStatus: (dbId: string, newStatus: string) => Promise<boolean>;
-  deleteOrderFromDB: (dbId: string) => Promise<boolean>; // NEW
+  deleteOrderFromDB: (dbId: string) => Promise<boolean>; 
 
   addItem: (item: CheckoutItem) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -276,20 +276,20 @@ export const useCheckoutStore = create<CheckoutState>()(
 
           if (orderError) throw orderError;
 
-          const cartItemCount = state.items.reduce((total, item) => total + item.quantity, 0);
           const orderItemsData = state.items.map(item => ({
             order_id: orderData.id,
-            product_id: item.id,
+            product_id: item.id.replace('-front', '').replace('-back', ''),
             product_name: item.name,
             quantity: item.quantity,
-            price_at_time: cartItemCount >= 2 ? 24 : 30 
+            price_at_time: 30 
           }));
 
           const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData);
           if (itemsError) throw itemsError;
 
           for (const item of state.items) {
-             const product = state.products.find(p => p.id === item.id);
+             const baseId = item.id.replace('-front', '').replace('-back', '');
+             const product = state.products.find(p => p.id === baseId);
              if (product) {
                const newStock = Math.max(0, product.stock - item.quantity);
                await get().updateProductStockInDB(product.id, newStock);
@@ -320,7 +320,6 @@ export const useCheckoutStore = create<CheckoutState>()(
         }
       },
 
-      // NEW: DELETE ORDER
       deleteOrderFromDB: async (dbId) => {
         try {
           const { error } = await supabase.from('orders').delete().eq('id', dbId);
@@ -385,7 +384,6 @@ export const useCheckoutStore = create<CheckoutState>()(
         } catch (error) { return false; }
       },
 
-      // NEW: DELETE PRODUCT
       deleteProductFromDB: async (id) => {
         try {
           const { error } = await supabase.from('products').delete().eq('id', id);
@@ -428,9 +426,15 @@ export const useCheckoutStore = create<CheckoutState>()(
       setPaymentMethod: (method) => set({ paymentMethod: method }),
       setShippingMethod: (method) => set((state) => ({ shippingMethod: method, selectedPickup: method !== 'pickup' ? null : state.selectedPickup })),
       setPickupSchedule: (schedule) => set({ selectedPickup: schedule }),
+      
+      // NEW VOLUME PRICING MATH
       getTotal: () => {
         const totalQty = get().items.reduce((total, item) => total + item.quantity, 0);
-        const subtotal = totalQty >= 2 ? (totalQty * 24) : (totalQty * 30);
+        let subtotal = 0;
+        
+        if (totalQty === 1) subtotal = 30;
+        else if (totalQty >= 2) subtotal = 43 + ((totalQty - 2) * 24);
+
         if (get().user?.isMember) return subtotal * 0.90; 
         return subtotal;
       },
