@@ -1,3 +1,71 @@
+"use client";
+import { useState, use, useEffect } from "react";
+import Link from "next/link";
+import { 
+  ShoppingBag, 
+  Heart, 
+  ChevronRight, 
+  Star, 
+  Plus, 
+  Minus, 
+  CheckCircle2, 
+  Copy, 
+  Camera, 
+  Smartphone, 
+  Droplets, 
+  ShieldCheck, 
+  LayoutGrid, 
+  X, 
+  Layers, 
+  TicketPercent, 
+  Trash2 
+} from "lucide-react";
+import { useCheckoutStore } from "@/lib/store";
+
+const style = `
+  @keyframes spin-card {
+    0% { transform: rotateY(0deg) rotateX(4deg); }
+    50% { transform: rotateY(180deg) rotateX(-2deg); }
+    100% { transform: rotateY(360deg) rotateX(4deg); }
+  }
+  .perspective-container { 
+    perspective: 1200px; 
+  }
+  .spin-wrapper { 
+    animation: spin-card 12s linear infinite; 
+    transform-style: preserve-3d; 
+    width: 90%; 
+    height: 100%; 
+    position: relative; 
+  }
+  @media (min-width: 768px) { 
+    .spin-wrapper { width: 85%; } 
+  }
+  .spin-wrapper:hover { 
+    animation-play-state: paused; 
+  }
+  .card-face { 
+    position: absolute; 
+    inset: 0; 
+    backface-visibility: hidden; 
+    -webkit-backface-visibility: hidden; 
+    border-radius: 20px; 
+    overflow: hidden; 
+  }
+  .card-back { 
+    transform: rotateY(180deg); 
+  }
+  .card-depth::before { 
+    content: ''; 
+    position: absolute; 
+    inset: -1px; 
+    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%); 
+    border-radius: 20px; 
+    z-index: -1; 
+    transform: translateZ(-1px); 
+  }
+`;
+
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   
@@ -10,15 +78,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     toggleWishlist, 
     removeItem, 
     updateQuantity,
-    fetchProducts,      // NEW: Added this
-    isLoadingProducts   // NEW: Added this
+    fetchProducts,
+    isLoadingProducts
   } = useCheckoutStore();
   
   const [quantity, setQuantity] = useState(1);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [previewBackId, setPreviewBackId] = useState<string | null>(null);
 
-  // NEW: Fetch products if someone opens this page directly via a shared link!
+  // FIX: Fetch products if someone opens this page directly via a shared link!
   useEffect(() => {
     if (products.length === 0) {
       fetchProducts();
@@ -26,10 +94,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }, [products.length, fetchProducts]);
 
   const product = products.find((p) => p.id === resolvedParams.id);
-  
   const [variant, setVariant] = useState(product?.backImage ? 'pair' : 'solo');
 
-  // Auto-select a back preview if they have items in their bag
   useEffect(() => {
     if (product && !product.backImage) {
       const bagProducts = items
@@ -37,14 +103,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         .filter(Boolean);
         
       const possibleBack = bagProducts.find(p => p?.id !== product.id);
-      
       if (possibleBack && !previewBackId) {
         setPreviewBackId(possibleBack.id);
       }
     }
   }, [items, product, products, previewBackId]);
 
-  // NEW: Show a loading screen while Supabase fetches the data
+  // FIX: Show a loading screen while Supabase fetches the data
   if (isLoadingProducts || (products.length === 0)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">
@@ -61,7 +126,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       <div className="min-h-screen flex items-center justify-center bg-[#fdf8f5]">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-[#2C2C2A] mb-4">Design not found</h1>
-          <Link href="/catalog" className="text-[#D4537E] font-medium hover:underline">Return to catalog</Link>
+          <Link href="/catalog" className="text-[#D4537E] hover:underline">Return to catalog</Link>
         </div>
       </div>
     );
@@ -70,7 +135,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const isSaved = wishlist.includes(product.id);
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
   
-  // Cart Savings Math
   const baseTotal = cartItemCount * 30;
   const bundleTotal = cartItemCount === 0 ? 0 : cartItemCount === 1 ? 30 : 43 + ((cartItemCount - 2) * 24);
   const totalSavings = baseTotal - bundleTotal;
@@ -105,9 +169,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     <div className="min-h-screen bg-[#fdf8f5] text-[#2C2C2A] font-sans pb-24 relative overflow-x-hidden">
       <style>{style}</style>
 
-      {/* --- SLIDE-OUT CART DRAWER --- */}
       {isCartOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+        <div 
+          className="fixed inset-0 bg-black/40 z-50 transition-opacity backdrop-blur-sm" 
+          onClick={() => setIsCartOpen(false)} 
+        />
       )}
       
       <div className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${isCartOpen ? "translate-x-0" : "translate-x-full"}`}>
@@ -115,7 +181,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <h2 className="text-xl font-medium text-[#2C2C2A] flex items-center gap-2">
             My bag <span className="text-sm font-normal text-gray-500">({cartItemCount} pieces)</span>
           </h2>
-          <button onClick={() => setIsCartOpen(false)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors">
+          <button 
+            onClick={() => setIsCartOpen(false)} 
+            className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -137,7 +206,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                </div>
             ) : (
                <div>
-                 <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Volume Promo Active!</p>
+                 <p className="text-sm font-bold text-[#71A051] mb-1 flex items-center gap-1.5">
+                   <CheckCircle2 className="w-4 h-4"/> Volume Promo Active!
+                 </p>
                  <p className="text-xs text-gray-600 mb-3">Awesome! You're saving <strong>₱{totalSavings.toFixed(2)}</strong> on your items.</p>
                  <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-[#f0e8e0]">
                    <div className="bg-[#71A051] h-full w-full transition-all duration-500"></div>
@@ -165,20 +236,35 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                            <img 
                              src={item.id.includes('-back') && cartProduct.backImage ? cartProduct.backImage : cartProduct.frontImage} 
                              className="w-full h-full object-cover" 
-                             alt={item.name}
+                             alt={item.name} 
                            />
                          )}
                       </div>
                       <div className="flex-1 flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                           <h4 className="text-sm font-bold text-[#2C2C2A] leading-tight line-clamp-2 pr-4">{item.name}</h4>
-                          <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          <button 
+                            onClick={() => removeItem(item.id)} 
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                         <div className="flex items-end justify-between mt-2">
                           <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-7 px-1">
-                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3" /></button>
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)} 
+                              className="w-6 h-6 flex items-center justify-center text-gray-500"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
                             <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-3 h-3" /></button>
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                              className="w-6 h-6 flex items-center justify-center text-gray-500"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
                           </div>
                           <p className="text-sm font-bold text-gray-500">₱{(30 * item.quantity).toFixed(2)}</p>
                         </div>
@@ -195,7 +281,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div className="p-6 border-t border-[#f0e8e0] bg-[#fdf8f5]">
             {totalSavings > 0 && (
               <div className="flex justify-between items-center mb-3 text-sm">
-                <span className="text-[#71A051] font-bold flex items-center gap-1"><TicketPercent className="w-4 h-4"/> Bundle Savings</span>
+                <span className="text-[#71A051] font-bold flex items-center gap-1">
+                  <TicketPercent className="w-4 h-4"/> Bundle Savings
+                </span>
                 <span className="text-[#71A051] font-bold">-₱{totalSavings.toFixed(2)}</span>
               </div>
             )}
@@ -203,7 +291,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span className="text-base font-medium text-[#2C2C2A]">Subtotal</span>
               <span className="text-2xl font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
             </div>
-            <Link href="/checkout/details" className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm" onClick={() => setIsCartOpen(false)}>
+            <Link 
+              href="/checkout/details" 
+              className="w-full flex justify-center items-center bg-[#D4537E] text-white py-3.5 rounded-full text-base font-medium hover:bg-[#b8436b] transition-colors shadow-sm" 
+              onClick={() => setIsCartOpen(false)}
+            >
               Proceed to checkout
             </Link>
           </div>
@@ -221,11 +313,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <span className="text-[#2C2C2A] truncate max-w-[120px] sm:max-w-none">{product.category}</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-            <button onClick={() => toggleWishlist(product.id)} className="text-gray-600 hover:text-[#D4537E] transition-colors relative p-2">
+            <button 
+              onClick={() => toggleWishlist(product.id)} 
+              className="text-gray-600 hover:text-[#D4537E] transition-colors relative p-2"
+            >
               <Heart className="w-5 h-5" />
               {wishlist.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[#D4537E] rounded-full"></span>}
             </button>
-            <button onClick={() => setIsCartOpen(true)} className="flex items-center gap-2 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full text-sm font-medium shadow-sm hover:border-gray-300 transition-all">
+            <button 
+              onClick={() => setIsCartOpen(true)} 
+              className="flex items-center gap-2 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full text-sm font-medium shadow-sm hover:border-gray-300 transition-all"
+            >
               <ShoppingBag className="w-4 h-4" />
               {cartItemCount > 0 && <span className="bg-[#2C2C2A] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{cartItemCount}</span>}
             </button>
@@ -240,11 +338,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <div className="perspective-container w-full max-w-md aspect-[1.58/1] relative flex justify-center items-center py-4 sm:py-8">
               <div className="spin-wrapper">
                 <div className={`card-face card-depth shadow-2xl bg-gradient-to-br ${product.color}`}>
-                  <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${product.frontImage}')` }} />
+                  <div 
+                    className="absolute inset-0 w-full h-full bg-cover bg-center z-0" 
+                    style={{ backgroundImage: `url('${product.frontImage}')` }} 
+                  />
                 </div>
                 <div className="card-face card-back card-depth shadow-2xl bg-gray-100">
                   {displayBackImage ? (
-                    <div className="absolute inset-0 w-full h-full bg-cover bg-center z-0" style={{ backgroundImage: `url('${displayBackImage}')` }} />
+                    <div 
+                      className="absolute inset-0 w-full h-full bg-cover bg-center z-0" 
+                      style={{ backgroundImage: `url('${displayBackImage}')` }} 
+                    />
                   ) : (
                     <div className="absolute inset-0 w-full h-full bg-gray-200 flex flex-col items-center justify-center border-4 border-gray-300 border-dashed rounded-[20px] p-6 text-center">
                       <Layers className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400 mb-2 sm:mb-3" />
@@ -256,17 +360,26 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
             </div>
 
-            <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-4 text-center">Hold touch or hover to pause spin</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-4 text-center">
+              Hold touch or hover to pause spin
+            </p>
 
             {!product.backImage && bagProducts.length > 0 && (
               <div className="w-full max-w-xs mt-6">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Preview back with bag items</p>
                 <div className="flex overflow-x-auto gap-2 pb-2 px-2 no-scrollbar snap-x justify-center">
-                  <button onClick={() => setPreviewBackId(null)} className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${!previewBackId ? 'border-[#D4537E]' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <button 
+                    onClick={() => setPreviewBackId(null)} 
+                    className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${!previewBackId ? 'border-[#D4537E]' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-[8px] text-gray-400 font-bold">BLANK</div>
                   </button>
                   {bagProducts.map(bp => (
-                    <button key={bp.id} onClick={() => setPreviewBackId(bp.id)} className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${previewBackId === bp.id ? 'border-[#D4537E]' : 'border-transparent hover:border-gray-300 shadow-sm'}`}>
+                    <button 
+                      key={bp.id} 
+                      onClick={() => setPreviewBackId(bp.id)} 
+                      className={`flex-shrink-0 w-12 h-8 rounded-md border-2 overflow-hidden transition-all ${previewBackId === bp.id ? 'border-[#D4537E]' : 'border-transparent hover:border-gray-300 shadow-sm'}`}
+                    >
                       <img src={bp.frontImage} className="w-full h-full object-cover" />
                     </button>
                   ))}
@@ -276,33 +389,58 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
             <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-3 mt-8 text-xs sm:text-sm font-medium text-gray-500">
               <span className="hidden sm:inline">Share design:</span>
-              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors"><Copy className="w-3.5 h-3.5" /> Copy</button>
-              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors text-pink-600"><Camera className="w-3.5 h-3.5" /> IG</button>
+              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
+                <Copy className="w-3.5 h-3.5" /> Copy
+              </button>
+              <button className="flex items-center gap-1.5 bg-white border border-[#f0e8e0] px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors text-pink-600">
+                <Camera className="w-3.5 h-3.5" /> IG
+              </button>
             </div>
           </div>
 
           <div className="flex flex-col">
             <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
-              <span className="bg-[#EEEDFE] text-[#3C3489] text-[10px] sm:text-[11px] font-medium uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full">{product.category}</span>
-              {product.backImage && <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full"><Layers className="w-3 h-3"/> Back-to-Back Set</span>}
-              <span className="bg-[#EAF3DE] text-[#27500A] text-[10px] sm:text-[11px] font-medium uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full">NFC-safe</span>
+              <span className="bg-[#EEEDFE] text-[#3C3489] text-[10px] sm:text-[11px] font-medium uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full">
+                {product.category}
+              </span>
+              {product.backImage && (
+                <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full">
+                  <Layers className="w-3 h-3"/> Back-to-Back Set
+                </span>
+              )}
+              <span className="bg-[#EAF3DE] text-[#27500A] text-[10px] sm:text-[11px] font-medium uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full">
+                NFC-safe
+              </span>
             </div>
 
-            <h1 className="text-xl sm:text-[22px] font-medium text-[#2C2C2A] mb-2 sm:mb-3 leading-snug">{product.name}</h1>
-            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 whitespace-pre-wrap">{product.description || "A premium, water-resistant vinyl sticker designed to elevate your daily commute. Leaves no residue and fits perfectly on standard cards."}</p>
+            <h1 className="text-xl sm:text-[22px] font-medium text-[#2C2C2A] mb-2 sm:mb-3 leading-snug">
+              {product.name}
+            </h1>
+            
+            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 whitespace-pre-wrap">
+              {product.description || "A premium, water-resistant vinyl sticker designed to elevate your daily commute. Leaves no residue and fits perfectly on standard cards."}
+            </p>
 
             <div className="flex items-center gap-1.5 mb-6">
               <div className="flex text-[#D28E3D]">
-                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" /><Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" /><Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" /><Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" /><Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300" />
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300" />
               </div>
               <span className="text-xs sm:text-sm font-medium text-gray-700 ml-1">4.0</span>
             </div>
 
+            {/* DYNAMIC VARIANT SELECTOR */}
             {product.backImage ? (
               <div className="mb-6">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Select Format</p>
                 <div className="grid grid-cols-1 gap-2 mb-2">
-                  <button onClick={() => setVariant('pair')} className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'pair' ? 'border-[#D4537E] bg-[#FBEAF0]/50 shadow-sm' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
+                  <button 
+                    onClick={() => setVariant('pair')} 
+                    className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'pair' ? 'border-[#D4537E] bg-[#FBEAF0]/50 shadow-sm' : 'border-[#f0e8e0] hover:border-gray-300'}`}
+                  >
                     <div className="flex flex-col items-start">
                       <span className={`text-sm font-bold ${variant === 'pair' ? 'text-[#D4537E]' : 'text-gray-700'}`}>Complete Set (Front & Back)</span>
                       <span className="text-xs text-gray-500 font-medium">2 stickers included</span>
@@ -311,11 +449,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setVariant('front')} className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'front' ? 'border-[#D4537E] bg-[#FBEAF0]/50' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
+                  <button 
+                    onClick={() => setVariant('front')} 
+                    className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'front' ? 'border-[#D4537E] bg-[#FBEAF0]/50' : 'border-[#f0e8e0] hover:border-gray-300'}`}
+                  >
                     <span className={`text-sm font-bold ${variant === 'front' ? 'text-[#D4537E]' : 'text-gray-700'}`}>Front Only</span>
                     <span className={`font-bold ${variant === 'front' ? 'text-[#D4537E]' : 'text-gray-500'}`}>₱30.00</span>
                   </button>
-                  <button onClick={() => setVariant('back')} className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'back' ? 'border-[#D4537E] bg-[#FBEAF0]/50' : 'border-[#f0e8e0] hover:border-gray-300'}`}>
+                  <button 
+                    onClick={() => setVariant('back')} 
+                    className={`flex justify-between items-center px-4 py-3 rounded-xl border-2 transition-all ${variant === 'back' ? 'border-[#D4537E] bg-[#FBEAF0]/50' : 'border-[#f0e8e0] hover:border-gray-300'}`}
+                  >
                     <span className={`text-sm font-bold ${variant === 'back' ? 'text-[#D4537E]' : 'text-gray-700'}`}>Back Only</span>
                     <span className={`font-bold ${variant === 'back' ? 'text-[#D4537E]' : 'text-gray-500'}`}>₱30.00</span>
                   </button>
@@ -374,21 +518,46 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8">
               <div className="flex items-center bg-white border border-[#f0e8e0] rounded-full h-12 sm:h-14 px-1 sm:px-2 shadow-sm">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3 sm:w-4 sm:h-4" /></button>
+                <button 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))} 
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-500 hover:text-black"
+                >
+                  <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
                 <span className="w-6 sm:w-8 text-center text-sm font-medium">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-3 h-3 sm:w-4 sm:h-4" /></button>
+                <button 
+                  onClick={() => setQuantity(quantity + 1)} 
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-500 hover:text-black"
+                >
+                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
               </div>
               
-              <button onClick={handleAddToCart} className="flex-1 bg-[#D4537E] text-white h-12 sm:h-14 rounded-full text-sm sm:text-base font-bold shadow-md hover:bg-[#b8436b] transition-all transform hover:scale-[1.02]">
+              <button 
+                onClick={handleAddToCart} 
+                className="flex-1 bg-[#D4537E] text-white h-12 sm:h-14 rounded-full text-sm sm:text-base font-bold shadow-md hover:bg-[#b8436b] transition-all transform hover:scale-[1.02]"
+              >
                 Add to bag
               </button>
             </div>
 
             <ul className="space-y-2 sm:space-y-3 mb-8">
-              <li className="flex items-start gap-2 sm:gap-3"><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-xs sm:text-sm text-gray-600 font-medium">Water-resistant & scratch-proof matte finish</span></li>
-              <li className="flex items-start gap-2 sm:gap-3"><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-xs sm:text-sm text-gray-600 font-medium">Leaves no residue when removed</span></li>
-              <li className="flex items-start gap-2 sm:gap-3"><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-xs sm:text-sm text-gray-600 font-medium">Standard Beep card dimensions</span></li>
-              <li className="flex items-start gap-2 sm:gap-3"><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" /><span className="text-xs sm:text-sm text-gray-600 font-medium">NFC signal passes through normally</span></li>
+              <li className="flex items-start gap-2 sm:gap-3">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
+                <span className="text-xs sm:text-sm text-gray-600 font-medium">Water-resistant & scratch-proof matte finish</span>
+              </li>
+              <li className="flex items-start gap-2 sm:gap-3">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
+                <span className="text-xs sm:text-sm text-gray-600 font-medium">Leaves no residue when removed</span>
+              </li>
+              <li className="flex items-start gap-2 sm:gap-3">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
+                <span className="text-xs sm:text-sm text-gray-600 font-medium">Standard Beep card dimensions</span>
+              </li>
+              <li className="flex items-start gap-2 sm:gap-3">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#71A051] flex-shrink-0 mt-0.5" />
+                <span className="text-xs sm:text-sm text-gray-600 font-medium">NFC signal passes through normally</span>
+              </li>
             </ul>
 
             <div className="pt-4 sm:pt-6 border-t border-[#f0e8e0]">
@@ -415,8 +584,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             { step: 4, title: "Tap and go!", desc: "Your aesthetic card is ready for the commute.", icon: Smartphone, color: "bg-emerald-100 text-emerald-600" }
           ].map((item) => (
             <div key={item.step} className="bg-white border border-[#f0e8e0] rounded-[18px] p-5 sm:p-6 relative">
-              <span className="absolute -top-3 -left-3 w-6 h-6 sm:w-8 sm:h-8 bg-[#D4537E] text-white rounded-full flex items-center justify-center text-xs sm:text-base font-medium shadow-sm">{item.step}</span>
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4 ${item.color}`}><item.icon className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+              <span className="absolute -top-3 -left-3 w-6 h-6 sm:w-8 sm:h-8 bg-[#D4537E] text-white rounded-full flex items-center justify-center text-xs sm:text-base font-medium shadow-sm">
+                {item.step}
+              </span>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4 ${item.color}`}>
+                <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
               <h3 className="font-medium text-[#2C2C2A] mb-1 text-sm sm:text-base">{item.title}</h3>
               <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">{item.desc}</p>
             </div>
@@ -437,12 +610,26 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
           </div>
           <div className="flex-1 w-full">
-            <h2 className="text-lg sm:text-xl font-medium text-[#2C2C2A] mb-3 sm:mb-4 text-center md:text-left">Size & compatibility</h2>
+            <h2 className="text-lg sm:text-xl font-medium text-[#2C2C2A] mb-3 sm:mb-4 text-center md:text-left">
+              Size & compatibility
+            </h2>
             <ul className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2"><span className="text-gray-500">Dimensions</span><span className="font-medium text-[#2C2C2A]">85.6mm × 54.0mm</span></li>
-              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2"><span className="text-gray-500">Thickness</span><span className="font-medium text-[#2C2C2A]">0.1mm (Ultra-thin)</span></li>
-              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2"><span className="text-gray-500">Material</span><span className="font-medium text-[#2C2C2A]">Premium Vinyl Matte</span></li>
-              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2"><span className="text-gray-500">Fits</span><span className="font-medium text-[#2C2C2A]">Beep, Bank Cards, IDs</span></li>
+              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2">
+                <span className="text-gray-500">Dimensions</span>
+                <span className="font-medium text-[#2C2C2A]">85.6mm × 54.0mm</span>
+              </li>
+              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2">
+                <span className="text-gray-500">Thickness</span>
+                <span className="font-medium text-[#2C2C2A]">0.1mm (Ultra-thin)</span>
+              </li>
+              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2">
+                <span className="text-gray-500">Material</span>
+                <span className="font-medium text-[#2C2C2A]">Premium Vinyl Matte</span>
+              </li>
+              <li className="flex justify-between text-xs sm:text-sm border-b border-[#f0e8e0] pb-2">
+                <span className="text-gray-500">Fits</span>
+                <span className="font-medium text-[#2C2C2A]">Beep, Bank Cards, IDs</span>
+              </li>
             </ul>
             <div className="bg-[#EAF3DE] text-[#27500A] px-3 sm:px-4 py-2 sm:py-3 rounded-[10px] sm:rounded-[14px] text-xs sm:text-sm font-medium flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 flex-shrink-0" />
