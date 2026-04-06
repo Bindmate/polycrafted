@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // NEW: Imported router for cache busting
+import { useRouter } from "next/navigation"; 
 import { ShoppingBag, ChevronDown, Heart, Search, Plus, Star, Share, X, User, CheckCircle2, Minus, Trash2, Sparkles, TicketPercent, Layers } from "lucide-react";
 import { useCheckoutStore } from "@/lib/store";
 
@@ -13,9 +13,7 @@ export default function CatalogPage() {
   const { addItem, items, getTotal, user, wishlist, toggleWishlist, products, fetchProducts, updateQuantity, removeItem } = useCheckoutStore();
   
   useEffect(() => {
-    // Force fetch fresh data from Supabase
     fetchProducts();
-    // NEW: Tell Next.js to purge the route cache so ghost data doesn't stick around!
     router.refresh(); 
   }, [fetchProducts, router]);
 
@@ -32,12 +30,10 @@ export default function CatalogPage() {
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
   const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
   
-  // Savings Math
   const baseTotal = items.reduce((acc, item) => acc + (item.quantity * 30), 0);
   const currentTotal = items.reduce((acc, item) => acc + (item.quantity * activeUnitPrice), 0);
   const totalSavings = baseTotal - currentTotal;
 
-  // Cart Upsell items (items not currently in cart)
   const upsellProducts = products.filter(p => !items.some(i => i.id === p.id)).slice(0, 4);
 
   const handleShare = (productName: string, e: React.MouseEvent) => {
@@ -73,11 +69,13 @@ export default function CatalogPage() {
     return filtered;
   }, [activeVibe, sortBy, searchQuery, products]);
 
+  // FIXED: Added the custom Back-to-Back styling here so we don't need duplicate badges
   const getBadgeStyle = (badge: string | null) => {
     if (badge === "Best seller") return "bg-[#FAEEDA] text-[#633806]";
     if (badge === "New drop") return "bg-[#EAF3DE] text-[#27500A]";
     if (badge === "Trending") return "bg-[#EEEDFE] text-[#3C3489]";
-    return "";
+    if (badge === "Back-to-Back") return "bg-indigo-50/90 text-indigo-700 border border-indigo-100 backdrop-blur-sm";
+    return "bg-white text-gray-800";
   };
 
   return (
@@ -86,10 +84,8 @@ export default function CatalogPage() {
       {/* --- CENTERED CART MODAL --- */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
           
-          {/* Modal Content */}
           <div className="bg-[#fdf8f5] w-full max-w-2xl max-h-[90vh] rounded-[24px] shadow-2xl flex flex-col overflow-hidden relative z-10 animate-in zoom-in-95 duration-200 border border-[#f0e8e0]">
             
             <div className="flex items-center justify-between p-5 md:p-6 border-b border-[#f0e8e0] bg-white">
@@ -102,7 +98,6 @@ export default function CatalogPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {/* PROMO BANNER */}
               <div className="p-5 md:p-6 border-b border-[#f0e8e0] bg-white">
                 {cartItemCount === 0 ? (
                   <div className="bg-[#FBEAF0] border border-[#D4537E]/20 p-4 rounded-xl flex items-start gap-3">
@@ -143,7 +138,6 @@ export default function CatalogPage() {
                       const cartProduct = products.find(p => p.id === item.id);
                       return (
                         <li key={`${item.id}-${index}`} className="flex gap-4 items-center bg-white p-3 md:p-4 rounded-[20px] border border-[#f0e8e0] shadow-sm">
-                          {/* Image */}
                           <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-[14px] flex-shrink-0 flex items-center justify-center overflow-hidden relative bg-gradient-to-br ${cartProduct?.color || 'from-gray-100 to-gray-200'}`}>
                             {cartProduct?.frontImage ? (
                               <img src={cartProduct.frontImage} alt={item.name} className="w-full h-full object-cover" />
@@ -155,7 +149,6 @@ export default function CatalogPage() {
                             </div>
                           </div>
                           
-                          {/* Details & Controls */}
                           <div className="flex-1 flex flex-col justify-between py-1 pr-2">
                             <div>
                               <div className="flex justify-between items-start">
@@ -170,14 +163,12 @@ export default function CatalogPage() {
                             </div>
                             
                             <div className="flex items-end justify-between mt-3">
-                              {/* Quantity Controls */}
                               <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-8 px-1">
                                 <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"><Minus className="w-3 h-3" /></button>
                                 <span className="w-6 text-center text-xs font-bold text-[#2C2C2A]">{item.quantity}</span>
                                 <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-black"><Plus className="w-3 h-3" /></button>
                               </div>
                               
-                              {/* Pricing */}
                               <div className="text-right">
                                 {cartItemCount >= 2 && (
                                   <p className="text-[10px] text-gray-400 line-through mb-0.5">₱{(30 * item.quantity).toFixed(2)}</p>
@@ -195,7 +186,6 @@ export default function CatalogPage() {
                 )}
               </div>
 
-              {/* UPSELL STRIP INSIDE CART */}
               {items.length > 0 && upsellProducts.length > 0 && (
                 <div className="p-5 md:p-6 bg-[#fdf8f5] border-t border-[#f0e8e0]">
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">You might also like (Add for just ₱{activeUnitPrice})</p>
@@ -216,7 +206,6 @@ export default function CatalogPage() {
               )}
             </div>
 
-            {/* MODAL FOOTER */}
             {items.length > 0 && (
               <div className="p-5 md:p-6 border-t border-[#f0e8e0] bg-white mt-auto">
                 {totalSavings > 0 && (
@@ -234,7 +223,6 @@ export default function CatalogPage() {
                   Proceed to Checkout
                 </Link>
                 
-                {/* Visual Payment Badges */}
                 <div className="flex items-center justify-center gap-2 mt-4">
                   <span className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded flex items-center gap-1 border border-blue-100">GCASH</span>
                   <span className="px-2 py-1 bg-green-50 text-green-700 text-[10px] font-bold rounded flex items-center gap-1 border border-green-100">MAYA</span>
@@ -303,12 +291,10 @@ export default function CatalogPage() {
         {/* ISKOLAR LIFE LOGIN BANNER */}
         {!user ? (
           <div className="bg-[#FBEAF0] rounded-[24px] p-6 md:p-10 mb-8 border border-[#f0e8e0] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Content */}
             <div className="relative z-10 max-w-lg text-center md:text-left">
               <h2 className="text-3xl md:text-4xl font-bold text-[#2C2C2A] tracking-tight mb-2">iskolar life</h2>
               <p className="text-gray-700 text-sm md:text-base mb-6 leading-relaxed">Create a free student account to unlock exclusive perks and manage your aesthetic haul.</p>
               
-              {/* Perks Grid */}
               <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-8">
                 <span className="bg-white/80 backdrop-blur-sm border border-white text-[#D4537E] px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">10% Off Orders</span>
                 <span className="bg-white/80 backdrop-blur-sm border border-white text-gray-700 px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">Save Wishlists</span>
@@ -316,7 +302,6 @@ export default function CatalogPage() {
                 <span className="bg-white/80 backdrop-blur-sm border border-white text-gray-700 px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm">Personalized Promo</span>
               </div>
               
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-3 w-full sm:w-auto">
                 <Link href="/account" className="w-full sm:w-auto bg-[#D4537E] text-white px-6 py-3 rounded-full text-sm font-bold shadow-md hover:bg-[#b8436b] transition-all hover:-translate-y-0.5 text-center">
                   Create free account
@@ -327,7 +312,6 @@ export default function CatalogPage() {
               </div>
             </div>
             
-            {/* Stacked Mini Cards Visual */}
             <div className="relative w-48 h-48 hidden md:block flex-shrink-0">
               <div className="absolute top-8 right-0 w-32 h-44 bg-gradient-to-br from-pink-300 to-rose-400 rounded-[14px] shadow-lg rotate-12 border-4 border-white flex flex-col justify-end p-3">
                  <div className="w-full h-2 bg-white/30 rounded-full mb-1"></div>
@@ -339,7 +323,6 @@ export default function CatalogPage() {
             </div>
           </div>
         ) : (
-          /* Logged In Hero */
           <div className="relative overflow-hidden rounded-[20px] md:rounded-[24px] bg-[#FBEAF0] p-6 sm:p-8 md:p-12 mb-6 md:mb-8 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 border border-[#f0e8e0]">
             <div className="relative z-10 max-w-xl text-center md:text-left">
               <span className="inline-block py-1 px-3 rounded-full bg-white/60 text-[#D4537E] text-xs font-medium mb-3">Welcome back, {user.name.split(' ')[0]}</span>
@@ -428,27 +411,33 @@ export default function CatalogPage() {
               <div key={product.id} className="group relative flex flex-col animate-in fade-in duration-300">
                 
                 <Link href={`/product/${product.id}`} className="block relative overflow-hidden rounded-[16px] md:rounded-[18px] bg-white border border-[#f0e8e0] shadow-sm transition-all duration-300 group-hover:border-[#D4537E]/30">
-                  <div 
-                    className={`aspect-[1.58/1] w-full bg-gradient-to-br ${product.color} relative flex items-center justify-center p-6 text-center select-none`}
-                    style={{ backgroundImage: `url('${product.frontImage}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                  >
-                    {/* THE WATERMARK: Only on the product image! */}
+                  <div className={`aspect-[1.58/1] w-full bg-gradient-to-br ${product.color} relative select-none`}>
+                    
+                    {/* NEW: SMOOTH CROSSFADE HOVER ANIMATION */}
+                    <div 
+                      className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ease-in-out ${product.backImage ? 'group-hover:opacity-0' : ''}`}
+                      style={{ backgroundImage: `url('${product.frontImage}')` }}
+                    />
+                    
+                    {product.backImage && (
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center transition-opacity duration-700 ease-in-out opacity-0 group-hover:opacity-100"
+                        style={{ backgroundImage: `url('${product.backImage}')` }}
+                      />
+                    )}
+
                     <div className="absolute inset-0 flex items-center justify-center rotate-[-25deg] pointer-events-none z-0">
                       <span className="text-xl xs:text-2xl md:text-3xl font-black text-white/60 tracking-widest uppercase drop-shadow-md">
                         Polycrafted
                       </span>
                     </div>
 
-                    {/* Badges */}
+                    {/* FIXED: DUPICATE BADGE REMOVED */}
                     <div className="absolute top-2 left-2 xs:top-3 xs:left-3 flex flex-col gap-1.5 items-start z-10">
                       {product.badge && (
-                        <span className={`text-[9px] xs:text-[10px] uppercase tracking-wider font-semibold px-2 xs:px-2.5 py-1 rounded-full shadow-sm ${getBadgeStyle(product.badge)}`}>
+                        <span className={`text-[9px] xs:text-[10px] uppercase tracking-wider font-bold px-2 xs:px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 ${getBadgeStyle(product.badge)}`}>
+                          {product.badge === "Back-to-Back" && <Layers className="w-3 h-3" />}
                           {product.badge}
-                        </span>
-                      )}
-                      {product.backImage && (
-                        <span className="text-[9px] xs:text-[10px] bg-indigo-50/90 border border-indigo-100 backdrop-blur-sm text-indigo-700 uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-sm">
-                          Back-to-Back
                         </span>
                       )}
                     </div>
