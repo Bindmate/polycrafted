@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store";
 import { 
-  LayoutDashboard, ShoppingBag, Package, Users, CalendarDays, LogOut, Lock, ArrowRight
+  LayoutDashboard, ShoppingBag, Package, Users, CalendarDays, LogOut, Lock, ArrowRight, Mail
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -74,7 +74,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Count pending orders for the notification badge
   const pendingOrdersCount = adminOrders.filter(o => o.status === "Awaiting Verification").length;
 
-  // Added a strict TypeScript type here so it knows 'badge' is optional!
   type NavLink = {
     name: string;
     href: string;
@@ -86,9 +85,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag, badge: pendingOrdersCount },
     { name: "Inventory", href: "/admin/inventory", icon: Package },
-    // FIX: Updated href to match your singular "customer" folder!
     { name: "Customers", href: "/admin/customers", icon: Users }, 
     { name: "Schedule", href: "/admin/schedule", icon: CalendarDays },
+    // 🚀 NEW: Outreach Hub Tab Added Here
+    { name: "Outreach", href: "/admin/outreach", icon: Mail },
   ];
 
   // --- THE SECURE ADMIN LAYOUT ---
@@ -117,7 +117,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <link.icon className="w-5 h-5" />
                   {link.name}
                 </div>
-                {/* FIX: Safely check if badge exists and is greater than 0 */}
                 {(link.badge || 0) > 0 && (
                   <span className="bg-[#D4537E] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                     {link.badge}
