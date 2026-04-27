@@ -10,9 +10,6 @@ export default function OutreachHub() {
   const [customSubject, setCustomSubject] = useState('');
   const [customBody, setCustomBody] = useState('');
   
-  // ---> HARDCODED SUPABASE LINK HERE <---
-  const [attachmentUrl, setAttachmentUrl] = useState('https://mqtbsctjeydlqlsjpuio.supabase.co/storage/v1/object/public/Proposals/Polycrafted_Partnership_Proposal.pdf');
-  
   const [isSendingEmails, setIsSendingEmails] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -96,8 +93,7 @@ export default function OutreachHub() {
         body: JSON.stringify({
           recipients: recipients,
           subject: customSubject,
-          messageTemplate: customBody,
-          attachmentUrl: attachmentUrl
+          messageTemplate: customBody
         })
       });
       const data = await res.json();
@@ -235,17 +231,6 @@ export default function OutreachHub() {
             />
           </div>
           
-          <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl">
-            <label className="text-[9px] font-bold text-gray-600 uppercase tracking-widest block mb-1">PDF Attachment (URL)</label>
-            <input 
-              type="url" 
-              placeholder="e.g. https://supabase.co/proposal.pdf"
-              value={attachmentUrl}
-              onChange={(e) => setAttachmentUrl(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-medium text-gray-800 outline-none focus:border-[#D4537E] shadow-sm"
-            />
-          </div>
-
           <button 
             onClick={handleMassSend}
             disabled={isSendingEmails || selectedLeadIds.length === 0}

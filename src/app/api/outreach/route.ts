@@ -3,8 +3,7 @@ import nodemailer from 'nodemailer';
 
 export async function POST(req: Request) {
   try {
-    // Removed imageUrl from the payload destructuring
-    const { recipients, subject, messageTemplate, attachmentUrl } = await req.json();
+    const { recipients, subject, messageTemplate } = await req.json();
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -13,23 +12,6 @@ export async function POST(req: Request) {
         pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
-
-    let pdfBuffer: Buffer | null = null;
-
-    // Download the PDF from Supabase into the server's memory ONCE
-    if (attachmentUrl && attachmentUrl.startsWith('http')) {
-      try {
-        const pdfResponse = await fetch(attachmentUrl);
-        if (pdfResponse.ok) {
-          const arrayBuffer = await pdfResponse.arrayBuffer();
-          pdfBuffer = Buffer.from(arrayBuffer);
-        } else {
-          console.error("Failed to download PDF from the provided URL.");
-        }
-      } catch (e) {
-        console.error("Error fetching attachment:", e);
-      }
-    }
 
     let successCount = 0;
 
@@ -102,22 +84,11 @@ export async function POST(req: Request) {
         html: htmlBody,
       };
 
-      // Attach the downloaded PDF directly to the email
-      if (pdfBuffer) {
-        mailOptions.attachments = [
-          {
-            filename: 'Polycrafted_Partnership_Proposal.pdf', 
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ];
-      }
-
       await transporter.sendMail(mailOptions);
       successCount++;
       
-      // 1-second pause to protect your Gmail reputation from spam filters
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 3-minute pause (180,000 milliseconds) to protect your Gmail reputation from spam filters
+      await new Promise(resolve => setTimeout(resolve, 180000));
     }
 
     return NextResponse.json({ success: true, sent: successCount });
