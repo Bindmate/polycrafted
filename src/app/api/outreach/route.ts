@@ -87,8 +87,8 @@ export async function POST(req: Request) {
       await transporter.sendMail(mailOptions);
       successCount++;
       
-      // 3-minute pause (180,000 milliseconds) to protect your Gmail reputation from spam filters
-      await new Promise(resolve => setTimeout(resolve, 180000));
+      // 1-second pause to prevent immediate rate limiting while keeping under Vercel's timeout limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     return NextResponse.json({ success: true, sent: successCount });
