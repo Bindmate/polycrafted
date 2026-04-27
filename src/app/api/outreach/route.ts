@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
                 <div style="font-size: 14px; color: #000; line-height: 1.6; font-family: Arial, sans-serif;">
                   (+63) 9948565485<br/>
-                  <a href="mailto:partnershipspolycrafted@gmail.com" style="color: #D4537E; text-decoration: underline;">partnershipspolycrafted@gmail.com</a>
+                  <a href="mailto:polycraftedofficial@gmail.com" style="color: #D4537E; text-decoration: underline;">partnershipspolycrafted@gmail.com</a>
                 </div>
               </td>
             </tr>
