@@ -13,7 +13,7 @@ export default function CheckoutDetailsPage() {
     shippingMethod, setShippingMethod,
     schedules, fetchSchedules, selectedPickup, setPickupSchedule,
     products, fetchProducts, updateQuantity, removeItem,
-    promoCode, discountFactor, applyPromo, removePromo // <-- NEW STORE ACTIONS
+    promoCode, discountFactor, applyPromo, removePromo
   } = useCheckoutStore();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -93,11 +93,26 @@ export default function CheckoutDetailsPage() {
 
   // CART MATH FOR MODAL
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
-  const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
   const baseTotal = items.reduce((acc, item) => acc + (item.quantity * 30), 0);
-  const currentSubtotal = items.reduce((acc, item) => acc + (item.quantity * activeUnitPrice), 0);
+  
+  // 1. Calculate base volume pricing
+  let currentSubtotal = 0;
+  if (cartItemCount === 1) {
+    currentSubtotal = 30;
+  } else if (cartItemCount >= 2) {
+    currentSubtotal = 43 + ((cartItemCount - 2) * 24);
+  }
+
+  // 2. MINIMAL FIX: Apply member discount to the subtotal so the strikethrough price matches!
+  if (user?.isMember) {
+    currentSubtotal = currentSubtotal * 0.90;
+  }
+
+  // 3. Continue with the rest of the math
+  const averageUnitPrice = cartItemCount > 0 ? currentSubtotal / cartItemCount : 30;
   const totalSavings = baseTotal - currentSubtotal;
   const upsellProducts = products.filter(p => !items.some(i => i.id === p.id)).slice(0, 4);
+  const nextItemCost = cartItemCount === 1 ? 13 : 24;
 
   const handleQuickAdd = (product: any) => {
     useCheckoutStore.getState().addItem({ id: product.id, name: product.name, price: product.price, quantity: 1 });
@@ -191,7 +206,7 @@ export default function CheckoutDetailsPage() {
                             
                             <div className="text-right">
                               {cartItemCount >= 2 && <p className="text-[10px] text-gray-400 line-through mb-0.5">₱{(30 * item.quantity).toFixed(2)}</p>}
-                              <p className="text-sm md:text-base font-black text-[#D4537E]">₱{(activeUnitPrice * item.quantity).toFixed(2)}</p>
+                              <p className="text-sm md:text-base font-black text-[#D4537E]">₱{(averageUnitPrice * item.quantity).toFixed(2)}</p>
                             </div>
                           </div>
                         </div>
@@ -203,7 +218,7 @@ export default function CheckoutDetailsPage() {
 
               {items.length > 0 && upsellProducts.length > 0 && (
                 <div className="p-5 md:p-6 bg-[#fdf8f5] border-t border-[#f0e8e0]">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">You might also like (Add for just ₱{activeUnitPrice})</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">You might also like (Add for just ₱{nextItemCost})</p>
                   <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
                     {upsellProducts.map(upsell => (
                       <div key={upsell.id} className="flex-shrink-0 w-28 group cursor-pointer" onClick={() => handleQuickAdd(upsell)}>
