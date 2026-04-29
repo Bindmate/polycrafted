@@ -1,11 +1,11 @@
 "use client";
 import { useCheckoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { Wallet, SmartphoneNfc, Landmark, CheckCircle2, AlertCircle } from "lucide-react";
+import { Wallet, SmartphoneNfc, Landmark, CheckCircle2, AlertCircle, Ticket } from "lucide-react";
 
 export default function PaymentStep() {
   const router = useRouter();
-  const { paymentMethod, setPaymentMethod } = useCheckoutStore();
+  const { paymentMethod, setPaymentMethod, getTotal, promoCode } = useCheckoutStore();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +37,11 @@ export default function PaymentStep() {
         <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-[#D28E3D]" />
         <div>
           <p className="text-sm font-medium">50% Downpayment Required</p>
-          <p className="text-xs mt-0.5 opacity-80">To process and ship out your order, we require a 50% downpayment of your total items. The remaining balance can be settled later!</p>
+          <p className="text-xs mt-0.5 opacity-80">
+            To process and ship out your order, we require a 50% downpayment of your total items 
+            {promoCode && <span className="font-bold text-[#D4537E]"> (discounted via promo!)</span>}. 
+            The remaining balance can be settled later!
+          </p>
         </div>
       </div>
 
@@ -51,7 +55,6 @@ export default function PaymentStep() {
                 isSelected ? 'border-[#D4537E] bg-[#FBEAF0]/20' : 'border-[#f0e8e0] bg-[#fdf8f5] hover:border-gray-300'
               }`}
             >
-              {/* Clickable Header */}
               <div 
                 onClick={() => setPaymentMethod(option.id as any)}
                 className="cursor-pointer p-5 flex items-center gap-4"
@@ -68,7 +71,6 @@ export default function PaymentStep() {
                 </div>
               </div>
 
-              {/* Expanding Details (Only shows if GCash is selected) */}
               {isSelected && option.id === 'gcash' && (
                 <div className="px-5 pb-5 pt-1 border-t border-[#D4537E]/10 mt-1 animate-in fade-in slide-in-from-top-2">
                   <p className="text-sm font-medium text-[#2C2C2A] mb-3 ml-[4.25rem]">Send your downpayment here:</p>
@@ -91,7 +93,6 @@ export default function PaymentStep() {
                 </div>
               )}
 
-              {/* Placeholder for Maya / Bank Transfer selected states */}
               {isSelected && option.id !== 'gcash' && (
                 <div className="px-5 pb-5 pt-1 border-t border-[#D4537E]/10 mt-1 animate-in fade-in slide-in-from-top-2">
                    <p className="text-xs text-gray-500 ml-[4.25rem] italic">Account details will be provided upon review.</p>

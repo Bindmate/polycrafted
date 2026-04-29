@@ -2,13 +2,13 @@
 import { useState } from "react";
 import { useCheckoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store, Sparkles, ScanLine } from "lucide-react";
+import { SearchCheck, MapPin, Wallet, AlertCircle, UploadCloud, CheckCircle2, Loader2, Store, Sparkles, ScanLine, Ticket } from "lucide-react";
 import Tesseract from 'tesseract.js'; 
 
 export default function ReviewStep() {
   const router = useRouter();
   
-  const { shippingDetails, paymentMethod, shippingMethod, selectedPickup, getTotal, placeOrder } = useCheckoutStore();
+  const { shippingDetails, paymentMethod, shippingMethod, selectedPickup, getTotal, placeOrder, promoCode } = useCheckoutStore();
   
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileObject, setFileObject] = useState<File | null>(null);
@@ -26,8 +26,9 @@ export default function ReviewStep() {
     
     setIsSubmitting(true);
     
+    // Notice we pass the promoCode up to your backend function!
     const success = await placeOrder(
-      { method: paymentMethod || 'Unknown', referenceNo: referenceNo },
+      { method: paymentMethod || 'Unknown', referenceNo: referenceNo, promoCode: promoCode },
       fileObject
     );
 
@@ -47,28 +48,18 @@ export default function ReviewStep() {
       
       setIsScanning(true);
       setAiDidFill(false);
-      setReferenceNo(""); // Clear old number while scanning
+      setReferenceNo("");
       
       try {
         const result = await Tesseract.recognize(file, 'eng');
         const rawText = result.data.text;
-
-        // 1. Clean the text to remove spaces, dashes, etc.
         const cleanedText = rawText.replace(/[\s\-]+/g, '');
-
-        // 2. Find ALL sequences of 12 to 13 digits in the receipt
         const matches = cleanedText.match(/\d{12,13}/g);
 
         if (matches) {
           let foundRef = null;
-
-          // 3. SMART FILTER: Look through all the numbers it found
           for (const m of matches) {
-            // Skip if it looks like a Philippine phone number (+639... or 09...)
-            if (m.startsWith('639') || m.startsWith('09')) {
-              continue;
-            }
-            // The first match that ISN'T a phone number is our true Ref No!
+            if (m.startsWith('639') || m.startsWith('09')) continue;
             foundRef = m;
             break;
           }
@@ -82,7 +73,6 @@ export default function ReviewStep() {
         } else {
           alert("Our AI couldn't clearly read the Reference Number from that image. Please type it in manually.");
         }
-
       } catch (error) {
         console.error("OCR Error:", error);
         alert("Scanner encountered an error. Please enter the Reference Number manually.");
@@ -154,8 +144,13 @@ export default function ReviewStep() {
             <button onClick={() => router.push('/checkout/payment')} className="text-xs text-[#D4537E] font-medium hover:underline">Edit</button>
           </div>
           
-          <div className="text-sm text-gray-600 mb-4">
-            <p className="font-medium text-[#2C2C2A]">{getPaymentName()}</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium text-[#2C2C2A]">{getPaymentName()}</p>
+            {promoCode && (
+              <span className="text-[10px] font-bold text-[#71A051] bg-[#EAF3DE] px-2 py-0.5 rounded flex items-center gap-1">
+                <Ticket className="w-3 h-3" /> PROMO APPLIED
+              </span>
+            )}
           </div>
 
           {(paymentMethod === 'gcash' || paymentMethod === 'maya') && (
@@ -213,7 +208,6 @@ export default function ReviewStep() {
               fileName ? 'border-[#71A051] bg-[#EAF3DE]/30 cursor-pointer' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'
             }`}>
               
-              {/* Scanning laser overlay animation */}
               {isScanning && (
                 <div className="absolute inset-0 w-full h-full pointer-events-none">
                   <div className="w-full h-1 bg-[#D4537E] absolute top-0 animate-[scan_1.5s_ease-in-out_infinite]" style={{ boxShadow: '0 0 8px 2px rgba(212, 83, 126, 0.5)' }}></div>

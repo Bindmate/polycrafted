@@ -83,6 +83,10 @@ type CheckoutState = {
   user: User | null;
   wishlist: string[];
   
+  // NEW: Promo state
+  promoCode: string | null;
+  discountFactor: number;
+  
   products: Product[];
   isLoadingProducts: boolean;
   
@@ -108,7 +112,8 @@ type CheckoutState = {
   addScheduleToDB: (date: string, startTime: string, endTime: string, location: string) => Promise<boolean>;
   toggleScheduleStatusDB: (id: string, currentStatus: boolean) => Promise<boolean>;
   
-  placeOrder: (paymentDetails: { method: string, referenceNo: string }, proofFile: File | null) => Promise<boolean>;
+  // UPDATED: placeOrder now accepts optional promoCode in paymentDetails
+  placeOrder: (paymentDetails: { method: string, referenceNo: string, promoCode?: string | null }, proofFile: File | null) => Promise<boolean>;
   updateOrderStatus: (dbId: string, newStatus: string) => Promise<boolean>;
   deleteOrderFromDB: (dbId: string) => Promise<boolean>; 
 
@@ -119,6 +124,10 @@ type CheckoutState = {
   setPaymentMethod: (method: string) => void;
   setShippingMethod: (method: 'jnt' | 'lalamove' | 'pickup') => void;
   setPickupSchedule: (schedule: PickupSchedule | null) => void;
+  
+  // NEW: Promo Actions
+  applyPromo: (code: string, factor: number) => void;
+  removePromo: () => void;
   
   getTotal: () => number;
   clearCart: () => void;
@@ -139,6 +148,8 @@ export const useCheckoutStore = create<CheckoutState>()(
       shippingMethod: 'jnt', 
       user: null,
       wishlist: [],
+      promoCode: null,
+      discountFactor: 0,
       products: [],
       isLoadingProducts: false,
       schedules: [],
@@ -271,6 +282,7 @@ export const useCheckoutStore = create<CheckoutState>()(
             proof_url: proofUrl,
             downpayment_expected: expectedDown,
             extracted_amount: expectedDown, 
+            promo_code: paymentDetails.promoCode || null, // NEW: Added Promo Code here
             status: 'Awaiting Verification'
           }]).select('id').single();
 
@@ -427,19 +439,35 @@ export const useCheckoutStore = create<CheckoutState>()(
       setShippingMethod: (method) => set((state) => ({ shippingMethod: method, selectedPickup: method !== 'pickup' ? null : state.selectedPickup })),
       setPickupSchedule: (schedule) => set({ selectedPickup: schedule }),
       
-      // NEW VOLUME PRICING MATH
+      applyPromo: (code, factor) => set({ promoCode: code, discountFactor: factor }),
+      removePromo: () => set({ promoCode: null, discountFactor: 0 }),
+      
       getTotal: () => {
         const totalQty = get().items.reduce((total, item) => total + item.quantity, 0);
         let subtotal = 0;
         
+        // Base volume pricing math
         if (totalQty === 1) subtotal = 30;
         else if (totalQty >= 2) subtotal = 43 + ((totalQty - 2) * 24);
 
-        if (get().user?.isMember) return subtotal * 0.90; 
-        return subtotal;
+        // Apply member discount if applicable
+        let finalTotal = subtotal;
+        if (get().user?.isMember) finalTotal = finalTotal * 0.90; 
+
+        // Apply newly added promo discount factor
+        if (get().discountFactor > 0) {
+          finalTotal = finalTotal * (1 - get().discountFactor);
+        }
+
+        return finalTotal;
       },
       
-      clearCart: () => set({ items: [], selectedPickup: null }),
+      clearCart: () => set({ 
+        items: [], 
+        selectedPickup: null,
+        promoCode: null, 
+        discountFactor: 0 
+      }),
       
       logout: () => set({ 
         user: null, 
@@ -447,7 +475,9 @@ export const useCheckoutStore = create<CheckoutState>()(
         myOrders: [], 
         items: [],
         shippingDetails: { fullName: '', phone: '', address: '' },
-        selectedPickup: null
+        selectedPickup: null,
+        promoCode: null,
+        discountFactor: 0
       }),
       
       login: (user) => set({ user }),
@@ -472,7 +502,10 @@ export const useCheckoutStore = create<CheckoutState>()(
         shippingDetails: state.shippingDetails, 
         shippingMethod: state.shippingMethod, 
         selectedPickup: state.selectedPickup,
-        isAdminAuthenticated: state.isAdminAuthenticated 
+        isAdminAuthenticated: state.isAdminAuthenticated,
+        // Persist the promo code so refreshing the page doesn't break the active discount!
+        promoCode: state.promoCode,
+        discountFactor: state.discountFactor
       }),
     }
   )

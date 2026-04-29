@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store";
-import { ChevronLeft, ChevronRight, Truck, Package, Store, MapPin, Phone, User as UserIcon, Calendar, Clock, X, Sparkles, CheckCircle2, ShoppingBag, Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Truck, Package, Store, MapPin, Phone, User as UserIcon, Calendar, Clock, X, Sparkles, CheckCircle2, ShoppingBag, Minus, Plus, Trash2, Ticket } from "lucide-react";
 
 export default function CheckoutDetailsPage() {
   const router = useRouter();
@@ -12,11 +12,16 @@ export default function CheckoutDetailsPage() {
     items, getTotal, user, shippingDetails, updateShipping, 
     shippingMethod, setShippingMethod,
     schedules, fetchSchedules, selectedPickup, setPickupSchedule,
-    products, fetchProducts, updateQuantity, removeItem
+    products, fetchProducts, updateQuantity, removeItem,
+    promoCode, discountFactor, applyPromo, removePromo // <-- NEW STORE ACTIONS
   } = useCheckoutStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  // NEW: Promo Code State
+  const [promoInput, setPromoInput] = useState("");
+  const [promoStatus, setPromoStatus] = useState<{type: 'success' | 'error' | '', msg: string}>({type: '', msg: ''});
 
   useEffect(() => {
     fetchSchedules();
@@ -48,6 +53,25 @@ export default function CheckoutDetailsPage() {
     }, 600);
   };
 
+  const handleApplyPromo = () => {
+    if (!promoInput.trim()) return;
+    const code = promoInput.toUpperCase();
+    
+    // Hardcoded Promo Logic for RTUJMAXPLC26
+    if (code === 'RTUJMAXPLC26') {
+      applyPromo(code, 0.5); // 50% discount
+      setPromoStatus({ type: 'success', msg: '50% off applied! Vibe secured.' });
+    } else {
+      setPromoStatus({ type: 'error', msg: 'Invalid or expired promo code.' });
+    }
+  };
+
+  const handleRemovePromo = () => {
+    removePromo();
+    setPromoInput("");
+    setPromoStatus({ type: '', msg: '' });
+  };
+
   const groupedSchedules = schedules.reduce((acc, curr) => {
     if (!acc[curr.date]) acc[curr.date] = [];
     acc[curr.date].push(curr);
@@ -71,8 +95,8 @@ export default function CheckoutDetailsPage() {
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
   const activeUnitPrice = cartItemCount >= 2 ? 24 : 30;
   const baseTotal = items.reduce((acc, item) => acc + (item.quantity * 30), 0);
-  const currentTotal = items.reduce((acc, item) => acc + (item.quantity * activeUnitPrice), 0);
-  const totalSavings = baseTotal - currentTotal;
+  const currentSubtotal = items.reduce((acc, item) => acc + (item.quantity * activeUnitPrice), 0);
+  const totalSavings = baseTotal - currentSubtotal;
   const upsellProducts = products.filter(p => !items.some(i => i.id === p.id)).slice(0, 4);
 
   const handleQuickAdd = (product: any) => {
@@ -202,7 +226,12 @@ export default function CheckoutDetailsPage() {
               {totalSavings > 0 && <p className="text-xs font-bold text-[#71A051] text-center mb-3">You saved ₱{totalSavings.toFixed(2)} with Pair Pricing!</p>}
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Subtotal</span>
-                <span className="text-2xl font-black text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
+                <div className="text-right">
+                  {discountFactor > 0 && (
+                    <span className="text-xs text-gray-400 line-through mr-2">₱{currentSubtotal.toFixed(2)}</span>
+                  )}
+                  <span className="text-2xl font-black text-[#2C2C2A]">₱{getTotal().toFixed(2)}</span>
+                </div>
               </div>
               <button 
                 type="button"
@@ -233,19 +262,66 @@ export default function CheckoutDetailsPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
         
         {/* Order Summary Ribbon */}
-        <div className="bg-white border border-[#f0e8e0] rounded-2xl p-4 mb-6 sm:mb-8 flex items-center justify-between shadow-sm">
+        <div className="bg-white border border-[#f0e8e0] rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FBEAF0] rounded-xl flex items-center justify-center text-[#D4537E]">
               <Package className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Order Total</p>
-              <p className="text-base sm:text-lg font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</p>
+              <div className="flex items-center gap-2">
+                {discountFactor > 0 && (
+                   <span className="text-xs text-gray-400 line-through">₱{currentSubtotal.toFixed(2)}</span>
+                )}
+                <p className="text-base sm:text-lg font-bold text-[#2C2C2A]">₱{getTotal().toFixed(2)}</p>
+              </div>
             </div>
           </div>
           <button type="button" onClick={() => setIsCartOpen(true)} className="text-xs font-bold text-[#D4537E] bg-[#FBEAF0] px-4 py-2 rounded-full hover:bg-[#f5d6e2] transition-colors">
             Edit Bag
           </button>
+        </div>
+
+        {/* PROMO CODE SECTION */}
+        <div className="bg-white border border-[#f0e8e0] rounded-2xl p-4 mb-6 sm:mb-8 shadow-sm">
+          {promoCode ? (
+            <div className="flex items-center justify-between bg-[#EAF3DE] border border-[#71A051]/30 p-3 rounded-xl">
+               <div className="flex items-center gap-2">
+                 <Ticket className="w-4 h-4 text-[#71A051]" />
+                 <span className="text-sm font-bold text-[#71A051]">{promoCode} Applied!</span>
+               </div>
+               <button onClick={handleRemovePromo} className="text-xs font-medium text-gray-500 hover:text-red-500 transition-colors">
+                 Remove
+               </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Ticket className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="text" 
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    placeholder="Have a promo code?"
+                    className="w-full bg-[#fdf8f5] border border-[#f0e8e0] focus:bg-white focus:border-[#D4537E] outline-none rounded-xl py-2.5 pl-10 pr-4 text-sm transition-all uppercase"
+                  />
+                </div>
+                <button 
+                  onClick={handleApplyPromo}
+                  type="button"
+                  className="bg-[#2C2C2A] text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+              {promoStatus.msg && (
+                <p className={`text-xs mt-2 ml-1 ${promoStatus.type === 'success' ? 'text-[#71A051]' : 'text-red-500'}`}>
+                  {promoStatus.msg}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
@@ -340,7 +416,7 @@ export default function CheckoutDetailsPage() {
                       <div key={date}>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{formatDate(date)}</p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {times.map(schedule => {
+                          {times.map((schedule: any) => {
                             const isSelected = selectedPickup?.id === schedule.id;
                             return (
                               <button
@@ -371,7 +447,7 @@ export default function CheckoutDetailsPage() {
             )}
           </section>
 
-          {/* SECTION 2: Contact Info (MOVED DOWN) */}
+          {/* SECTION 2: Contact Info */}
           <section className="bg-white border border-[#f0e8e0] rounded-[24px] p-6 sm:p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
